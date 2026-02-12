@@ -21,13 +21,14 @@ async function generateTailoredContent(jobDescription, masterExperience) {
                     JOB DESCRIPTION:
                     ${jobDescription}
 
-                    MASTER EXPERIENCE:
+                    MASTER EXPERIENCE AND USER PROFILE:
                     ${JSON.stringify(masterExperience)}
 
                     Please generate a JSON object with:
                     1. "summary": A 3-sentence professional summary tailored to this job.
                     2. "highlights": 4 bullet points for the most relevant experience matching the job keywords.
-                    3. "coverLetter": A professional cover letter.
+                    3. "coverLetter": A professional cover letter. IMPORTANT: Use the user's name, email, and phone number from the provided profile data. DO NOT use placeholders like [Your Name] or [Date]. If you need a date, use today's date.
+                    4. "interviewPrep": 5 potential interview questions specifically for this role and how the user should answer them based on their experience.
                     `
                 }
             ],

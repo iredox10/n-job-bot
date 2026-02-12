@@ -1,5 +1,6 @@
 const { scrapeMyJobMag, getJobDetails } = require('./src/scraper');
 const { scrapeHotNigerianJobs, getHotJobDetails } = require('./src/scraper/hotjobs');
+const { scrapeIndeed } = require('./src/scraper/indeed');
 const { generateTailoredContent } = require('./src/ai/engine');
 const { createResumePDF } = require('./src/pdf/generator');
 const { sendApplication } = require('./src/mailer');
@@ -13,20 +14,52 @@ const client = new Client()
 
 const databases = new Databases(client);
 
-// Master Data
-const MASTER_DATA = {
-    name: "Iredox",
-    email: "iredoxtech@gmail.com",
-    phone: "+234 800 000 0000",
-    location: "Lagos, Nigeria",
-    experience: [
-        {
-            role: "Full Stack Web Developer",
-            company: "Personal Projects",
-            description: "Developed various web applications using React, Node.js, and Appwrite. Specialized in automation bots and scalable architectures."
+async function getMasterData() {
+    try {
+        const dbId = process.env.DATABASE_ID;
+        const profColId = process.env.PROFILE_COLLECTION_ID;
+        
+        if (profColId) {
+            const response = await databases.listDocuments(dbId, profColId, [Query.limit(1)]);
+            if (response.documents.length > 0) {
+                const doc = response.documents[0];
+                return {
+                    name: doc.name,
+                    email: doc.email,
+                    phone: doc.phone,
+                    location: doc.location || "Nigeria",
+                    title: doc.title || "Full Stack Web Developer",
+                    experience: [
+                        {
+                            role: doc.title,
+                            company: "Various",
+                            description: doc.summary
+                        }
+                    ],
+                    skills: doc.skills
+                };
+            }
         }
-    ]
-};
+    } catch (e) {
+        console.warn('Could not fetch profile from Appwrite, using fallback.');
+    }
+
+    return {
+        name: "Iredox",
+        email: "iredoxtech@gmail.com",
+        phone: "+234 800 000 0000",
+        location: "Lagos, Nigeria",
+        experience: [
+            {
+                role: "Full Stack Web Developer",
+                company: "Personal Projects",
+                description: "Developed various web applications using React, Node.js, and Appwrite. Specialized in automation bots and scalable architectures."
+            }
+        ]
+    };
+}
+
+const { sendTelegramAlert } = require('./src/notifications/telegram');
 
 async function runJobBot() {
     console.log('--- Starting Job Search ---');
@@ -34,16 +67,18 @@ async function runJobBot() {
     const dbId = process.env.DATABASE_ID;
     const colId = process.env.JOBS_COLLECTION_ID;
 
-    // Try both scrapers
+    const MASTER_DATA = await getMasterData();
+    console.log(`Applying as: ${MASTER_DATA.name} (${MASTER_DATA.title})`);
+
     const myJobMagJobs = await scrapeMyJobMag(process.env.JOB_KEYWORDS);
     const hotJobs = await scrapeHotNigerianJobs(process.env.JOB_KEYWORDS);
+    const indeedJobs = await scrapeIndeed(process.env.JOB_KEYWORDS);
     
-    const allJobs = [...myJobMagJobs, ...hotJobs];
+    const allJobs = [...myJobMagJobs, ...hotJobs, ...indeedJobs];
     console.log(`Found ${allJobs.length} potential jobs in total.`);
 
     for (const job of allJobs) {
         try {
-            // Check if we already processed this link
             const existing = await databases.listDocuments(dbId, colId, [
                 Query.equal('link', job.link)
             ]);
@@ -55,19 +90,19 @@ async function runJobBot() {
 
             console.log(`\nProcessing: ${job.title} at ${job.company}`);
             
-            const details = job.source === 'HotNigerianJobs' 
+            let details = job.source === 'HotNigerianJobs' 
                 ? await getHotJobDetails(job.link)
                 : await getJobDetails(job.link);
 
             if (!details || !details.email) {
                 console.log('Skipping: No contact email found.');
-                // Log to DB anyway so we don't re-scan
                 try {
                     await databases.createDocument(dbId, colId, ID.unique(), {
                         title: job.title,
                         company: job.company,
                         link: job.link,
-                        applied: false
+                        applied: false,
+                        status: 'ignored'
                     });
                 } catch (e) {}
                 continue;
@@ -75,54 +110,76 @@ async function runJobBot() {
 
             console.log(`Found email: ${details.email}. Generating tailored CV...`);
 
-            // Log to Appwrite first
-            let doc;
-            try {
-                doc = await databases.createDocument(dbId, colId, ID.unique(), {
-                    title: job.title,
-                    company: job.company,
-                    link: job.link,
-                    applied: false
-                });
-            } catch (e) {
-                console.log('Appwrite logging failed.');
-            }
-
-            let aiContent = await generateTailoredContent(details.description, MASTER_DATA.experience);
+            let aiContent = await generateTailoredContent(details.description, MASTER_DATA);
             
-            if (!aiContent) {
-                console.log('AI generation failed. Using default template.');
-                aiContent = {
-                    summary: "Experienced Web Developer looking for a challenging role in Nigeria.",
-                    highlights: ["Expert in React and Node.js", "Proficient in Database Management", "Strong problem-solving skills", "Experienced in Nigerian Market"],
-                    coverLetter: `Dear Hiring Manager at ${job.company},\n\nI am writing to express my interest in the ${job.title} position...`
-                };
+            if (aiContent && aiContent.coverLetter) {
+                // Manual fallback for common placeholders
+                aiContent.coverLetter = aiContent.coverLetter
+                    .replace(/\[Your Name\]/gi, MASTER_DATA.name)
+                    .replace(/\[Your Email\]/gi, MASTER_DATA.email)
+                    .replace(/\[Your Phone Number\]/gi, MASTER_DATA.phone)
+                    .replace(/\[Your Address\]/gi, MASTER_DATA.location)
+                    .replace(/\[Date\]/gi, new Date().toLocaleDateString())
+                    .replace(/\[Company Name\]/gi, job.company);
             }
-
-            const pdfData = {
-                ...MASTER_DATA,
-                summary: aiContent.summary,
-                highlights: aiContent.highlights
+            
+            const isApprovalMode = process.env.APPROVAL_MODE === 'true';
+            
+            const jobData = {
+                title: job.title,
+                company: job.company,
+                link: job.link,
+                email: details.email,
+                applied: !isApprovalMode,
+                status: isApprovalMode ? 'draft' : 'sent',
+                cover_letter: aiContent ? aiContent.coverLetter : '',
+                // Combine interview prep and tailored resume parts to save Appwrite attribute space
+                interview_prep: aiContent ? JSON.stringify({
+                    questions: aiContent.interviewPrep,
+                    summary: aiContent.summary,
+                    highlights: aiContent.highlights
+                }) : ''
             };
 
-            const pdfPath = `./resume_${Date.now()}.pdf`;
-            await createResumePDF(pdfPath, pdfData);
+            // Create Appwrite document
+            let doc;
+            try {
+                doc = await databases.createDocument(dbId, colId, ID.unique(), jobData);
+            } catch (e) {
+                console.log('Appwrite logging failed:', e.message);
+            }
 
-            console.log('Sending application...');
-            const success = await sendApplication(
-                details.email, 
-                `Application for ${job.title} - ${MASTER_DATA.name}`,
-                aiContent.coverLetter,
-                pdfPath
-            );
+            if (doc) {
+                await sendTelegramAlert(`🚀 <b>New Job Found!</b>\n\n<b>Title:</b> ${job.title}\n<b>Company:</b> ${job.company}\n<b>Status:</b> ${isApprovalMode ? 'Draft (Awaiting Review)' : 'Applied'}\n\n<a href="${job.link}">View Job</a>`);
+            }
 
-            if (success) {
-                console.log('Successfully applied!');
-                if (doc) {
+            if (!isApprovalMode && aiContent) {
+                const pdfData = {
+                    ...MASTER_DATA,
+                    summary: aiContent.summary,
+                    highlights: aiContent.highlights
+                };
+
+                const pdfPath = `./resume_${Date.now()}.pdf`;
+                await createResumePDF(pdfPath, pdfData);
+
+                console.log('Sending application...');
+                const success = await sendApplication(
+                    details.email, 
+                    `Application for ${job.title} - ${MASTER_DATA.name}`,
+                    aiContent.coverLetter,
+                    pdfPath
+                );
+
+                if (success && doc) {
+                    console.log('Successfully applied!');
                     await databases.updateDocument(dbId, colId, doc.$id, {
-                        applied: true
+                        applied: true,
+                        status: 'sent'
                     });
                 }
+            } else if (isApprovalMode) {
+                console.log('Approval Mode: Saved as draft for review.');
             }
         } catch (err) {
             console.error(`Error processing ${job.title}:`, err.message);

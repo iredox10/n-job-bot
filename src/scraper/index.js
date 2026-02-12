@@ -6,6 +6,7 @@ async function scrapeMyJobMag(keywords) {
     // Try search first
     const urls = [
         `https://www.myjobmag.com/search/jobs?q=${encodeURIComponent(keywords)}`,
+        `https://www.myjobmag.com/search/jobs?q=${encodeURIComponent(keywords)}&currentpage=2`,
         `https://www.myjobmag.com/jobs-by-field/information-technology`
     ];
 
