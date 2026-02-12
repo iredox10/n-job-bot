@@ -7,13 +7,13 @@ async function createResumeWord(outputPath, data) {
             properties: {},
             children: [
                 new Paragraph({
-                    text: data.name,
+                    text: data.name || "Name",
                     heading: HeadingLevel.TITLE,
                     alignment: AlignmentType.CENTER,
                 }),
                 new Paragraph({
                     children: [
-                        new TextRun(`${data.email} | ${data.phone} | ${data.location}`),
+                        new TextRun(`${data.email || ""} | ${data.phone || ""} | ${data.location || ""}`),
                     ],
                     alignment: AlignmentType.CENTER,
                 }),
@@ -24,7 +24,7 @@ async function createResumeWord(outputPath, data) {
                     heading: HeadingLevel.HEADING_1,
                 }),
                 new Paragraph({
-                    text: data.summary,
+                    text: data.summary || "No summary provided.",
                     spacing: { after: 200 },
                 }),
 
@@ -32,7 +32,7 @@ async function createResumeWord(outputPath, data) {
                     text: "Key Qualifications",
                     heading: HeadingLevel.HEADING_1,
                 }),
-                ...data.highlights.map(h => new Paragraph({
+                ...(data.highlights || []).map(h => new Paragraph({
                     text: h,
                     bullet: { level: 0 },
                 })),
@@ -42,18 +42,26 @@ async function createResumeWord(outputPath, data) {
                     text: "Professional Experience",
                     heading: HeadingLevel.HEADING_1,
                 }),
-                ...data.experience.flatMap(exp => [
+                ...(data.experience || []).flatMap(exp => [
                     new Paragraph({
                         children: [
-                            new TextRun({ text: exp.role, bold: true }),
-                            new TextRun({ text: ` at ${exp.company}` }),
+                            new TextRun({ text: exp.role || "Role", bold: true }),
+                            new TextRun({ text: ` at ${exp.company || "Company"}` }),
                         ],
                     }),
                     new Paragraph({
-                        text: exp.description,
+                        text: exp.description || "",
                         spacing: { after: 150 },
                     })
                 ]),
+
+                new Paragraph({
+                    text: "Education",
+                    heading: HeadingLevel.HEADING_1,
+                }),
+                new Paragraph({
+                    text: data.education || "",
+                }),
             ],
         }],
     });

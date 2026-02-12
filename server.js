@@ -40,37 +40,72 @@ app.post('/api/download-resume', async (req, res) => {
         const safeCompany = (job.company || 'Company').replace(/\s+/g, '_');
         const filename = `Resume_${safeCompany}_${timestamp}`;
         
-        // Use AI highlights if available, otherwise use profile skills
         let highlights = [];
+        let aiSummary = null;
+        
         if (job.interview_prep) {
             try {
-                // If we stored resume data in interview_prep as a workaround
                 const parsed = JSON.parse(job.interview_prep);
                 if (parsed.highlights) highlights = parsed.highlights;
-            } catch(e) {}
+                if (parsed.summary) aiSummary = parsed.summary;
+            } catch(e) {
+                console.log('Error parsing interview_prep for resume data:', e.message);
+            }
         }
-        if (highlights.length === 0) {
+
+        // Fallback for highlights if empty
+        if (!highlights || highlights.length === 0) {
             highlights = profile.skills ? profile.skills.split(',').map(s => s.trim()) : [];
         }
 
+        // Parse work history if it's a string (from Appwrite)
+        let experience = [];
+        if (profile.work_history) {
+            // Very simple parser for newlines/semicolons
+            const parts = profile.work_history.split(';');
+            experience = parts.map(p => {
+                const [roleComp, desc] = p.split(':');
+                const [role, comp] = (roleComp || '').split(' at ');
+                return {
+                    role: (role || '').trim(),
+                    company: (comp || '').trim(),
+                    description: (desc || '').trim()
+                };
+            }).filter(e => e.role);
+        }
+
+        if (experience.length === 0) {
+            experience = [{
+                role: profile.title || "Software Developer",
+                company: "Professional Freelance",
+                description: profile.summary || "Web development projects"
+            }];
+        }
+
         const data = {
-            ...profile,
-            summary: job.summary || profile.summary,
+            name: profile.name || "User",
+            email: profile.email || "",
+            phone: profile.phone || "",
+            location: profile.location || "Nigeria",
+            summary: aiSummary || job.summary || profile.summary || "Experienced Web Developer",
             highlights: highlights,
-            experience: profile.experience || []
+            experience: experience,
+            education: profile.education || ""
         };
+
+        console.log('Generating resume with data:', JSON.stringify(data, null, 2));
 
         if (format === 'pdf') {
             const filePath = path.join(__dirname, `${filename}.pdf`);
             await createResumePDF(filePath, data);
             res.download(filePath, (err) => {
-                if (!err) fs.unlinkSync(filePath);
+                if (!err && fs.existsSync(filePath)) fs.unlinkSync(filePath);
             });
         } else {
             const filePath = path.join(__dirname, `${filename}.docx`);
             await createResumeWord(filePath, data);
             res.download(filePath, (err) => {
-                if (!err) fs.unlinkSync(filePath);
+                if (!err && fs.existsSync(filePath)) fs.unlinkSync(filePath);
             });
         }
     } catch (e) {
@@ -113,6 +148,7 @@ app.post('/api/init-db', async (req, res) => {
                 { key: 'name', type: 'string', size: 255 },
                 { key: 'email', type: 'string', size: 255 },
                 { key: 'phone', type: 'string', size: 255 },
+                { key: 'location', type: 'string', size: 255 },
                 { key: 'title', type: 'string', size: 255 },
                 { key: 'skills', type: 'string', size: 1000 },
                 { key: 'summary', type: 'string', size: 2000 }

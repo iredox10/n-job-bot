@@ -56,9 +56,12 @@ const App = () => {
     name: 'Iredox',
     email: 'iredoxtech@gmail.com',
     phone: '+234 800 000 0000',
+    location: 'Lagos, Nigeria',
     title: 'Full Stack Web Developer',
     skills: 'React, Node.js, Appwrite, Tailwind CSS',
-    summary: 'Experienced developer looking for automation roles.'
+    summary: 'Experienced developer looking for automation roles.',
+    work_history: '',
+    education: ''
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -125,9 +128,12 @@ const App = () => {
         name: profile.name,
         email: profile.email,
         phone: profile.phone,
+        location: profile.location,
         title: profile.title,
         skills: profile.skills,
-        summary: profile.summary
+        summary: profile.summary,
+        work_history: profile.work_history,
+        education: profile.education
       };
 
       if (profile.$id) {
@@ -227,16 +233,23 @@ const App = () => {
         })
       });
       
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Server error');
+      }
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Resume_${selectedJob.company}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      a.download = `Resume_${selectedJob.company.replace(/\s+/g, '_')}.${format === 'pdf' ? 'pdf' : 'docx'}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (e) {
-      alert('Download failed');
+      console.error('Download error:', e);
+      alert('Download failed: ' + e.message);
     } finally {
       setLoading(false);
     }
@@ -524,12 +537,13 @@ const ProfileView = ({ profile, setProfile, onSave, onSyncGitHub, loading }) => 
     </div>
     
     <div className="grid grid-cols-2 gap-8">
-      <div className="space-y-6">
-        <Input label="Full Name" value={profile.name} onChange={v => setProfile({...profile, name: v})} />
-        <Input label="Job Title" value={profile.title} onChange={v => setProfile({...profile, title: v})} />
-        <Input label="Email" value={profile.email} onChange={v => setProfile({...profile, email: v})} />
-        <Input label="Phone" value={profile.phone} onChange={v => setProfile({...profile, phone: v})} />
-      </div>
+                    <div className="space-y-6">
+                      <Area label="Skills (Comma separated)" value={profile.skills} onChange={v => setProfile({...profile, skills: v})} rows={3} />
+                      <Area label="Work History (Role, Company, Description)" value={profile.work_history} onChange={v => setProfile({...profile, work_history: v})} rows={5} placeholder="e.g. Senior Dev at Google: Built search engine; Junior Dev at MS: Fixed bugs" />
+                      <Area label="Education" value={profile.education} onChange={v => setProfile({...profile, education: v})} rows={3} placeholder="e.g. BSc Computer Science, University of Lagos" />
+                      <Area label="Professional Summary" value={profile.summary} onChange={v => setProfile({...profile, summary: v})} rows={4} />
+                    </div>
+
       <div className="space-y-6">
         <div>
           <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Technical Skills</label>
