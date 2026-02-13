@@ -130,7 +130,9 @@ async function runJobBot() {
                 interview_prep: aiContent ? JSON.stringify({
                     questions: aiContent.interviewPrep,
                     summary: aiContent.summary,
-                    highlights: aiContent.highlights
+                    skills: aiContent.skills,
+                    workExperience: aiContent.workExperience,
+                    projects: aiContent.projects
                 }) : ''
             };
 
@@ -151,7 +153,9 @@ async function runJobBot() {
                 const pdfData = {
                     ...MASTER_DATA,
                     summary: aiContent.summary,
-                    highlights: aiContent.highlights
+                    skills: aiContent.skills,
+                    workExperience: aiContent.workExperience,
+                    projects: aiContent.projects
                 };
 
                 const pdfPath = `./resume_${Date.now()}.pdf`;

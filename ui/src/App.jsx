@@ -61,7 +61,12 @@ const App = () => {
     skills: 'React, Node.js, Appwrite, Tailwind CSS',
     summary: 'Experienced developer looking for automation roles.',
     work_history: '',
-    education: ''
+    education: '',
+    certifications: '',
+    languages: '',
+    linkedin: '',
+    github: '',
+    portfolio: ''
   });
 
   const [appSettings, setAppSettings] = useState({
@@ -133,7 +138,12 @@ const App = () => {
         skills: profile.skills,
         summary: profile.summary,
         work_history: profile.work_history,
-        education: profile.education
+        education: profile.education,
+        certifications: profile.certifications,
+        languages: profile.languages,
+        linkedin: profile.linkedin,
+        github: profile.github,
+        portfolio: profile.portfolio
       };
 
       if (profile.$id) {
@@ -590,7 +600,7 @@ const JobsView = ({ jobs, loading, onRefresh, onReview }) => (
 );
 
 const ProfileView = ({ profile, setProfile, onSave, onSyncGitHub, loading }) => (
-  <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
+  <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-5xl mx-auto bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
     <div className="flex items-center justify-between mb-10">
       <div>
         <h3 className="text-2xl font-bold text-slate-900">Master CV Builder</h3>
@@ -606,24 +616,52 @@ const ProfileView = ({ profile, setProfile, onSave, onSyncGitHub, loading }) => 
       </div>
     </div>
     
-    <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                      <Area label="Skills (Comma separated)" value={profile.skills} onChange={v => setProfile({...profile, skills: v})} rows={3} />
-                      <Area label="Work History (Role, Company, Description)" value={profile.work_history} onChange={v => setProfile({...profile, work_history: v})} rows={5} placeholder="e.g. Senior Dev at Google: Built search engine; Junior Dev at MS: Fixed bugs" />
-                      <Area label="Education" value={profile.education} onChange={v => setProfile({...profile, education: v})} rows={3} placeholder="e.g. BSc Computer Science, University of Lagos" />
-                      <Area label="Professional Summary" value={profile.summary} onChange={v => setProfile({...profile, summary: v})} rows={4} />
-                    </div>
-
-      <div className="space-y-6">
-        <div>
-          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Technical Skills</label>
-          <textarea rows="4" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all" value={profile.skills} onChange={e => setProfile({...profile, skills: e.target.value})}></textarea>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Bio / Experience Summary</label>
-          <textarea rows="5" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all" value={profile.summary} onChange={e => setProfile({...profile, summary: e.target.value})}></textarea>
-        </div>
+    <div className="space-y-8">
+      <div className="grid grid-cols-3 gap-4">
+        <Input label="Full Name" value={profile.name || ''} onChange={v => setProfile({...profile, name: v})} />
+        <Input label="Email" value={profile.email || ''} onChange={v => setProfile({...profile, email: v})} />
+        <Input label="Phone" value={profile.phone || ''} onChange={v => setProfile({...profile, phone: v})} />
       </div>
+      
+      <div className="grid grid-cols-3 gap-4">
+        <Input label="Location" value={profile.location || ''} onChange={v => setProfile({...profile, location: v})} />
+        <Input label="Job Title" value={profile.title || ''} onChange={v => setProfile({...profile, title: v})} />
+        <Input label="LinkedIn URL" value={profile.linkedin || ''} onChange={v => setProfile({...profile, linkedin: v})} placeholder="linkedin.com/in/username" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="GitHub URL" value={profile.github || ''} onChange={v => setProfile({...profile, github: v})} placeholder="github.com/username" />
+        <Input label="Portfolio URL" value={profile.portfolio || ''} onChange={v => setProfile({...profile, portfolio: v})} placeholder="yourwebsite.com" />
+      </div>
+
+      <Area label="Professional Summary" value={profile.summary || ''} onChange={v => setProfile({...profile, summary: v})} rows={3} placeholder="A compelling 2-3 sentence summary of your professional background and career goals..." />
+
+      <Area label="Technical Skills (comma-separated)" value={profile.skills || ''} onChange={v => setProfile({...profile, skills: v})} rows={2} placeholder="JavaScript, React, Node.js, Python, SQL, AWS..." />
+
+      <div>
+        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Work Experience</label>
+        <textarea 
+          rows={6} 
+          className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all text-sm"
+          value={profile.work_history || ''}
+          onChange={e => setProfile({...profile, work_history: e.target.value})}
+          placeholder="Format: Job Title at Company | Duration | Achievement 1; Achievement 2; Achievement 3
+
+Example:
+Senior Developer at TechCorp | 2021-Present | Built scalable APIs serving 1M users; Led team of 5 developers; Reduced load time by 40%
+Junior Developer at StartupXYZ | 2019-2021 | Developed React dashboard; Integrated payment systems"
+        />
+      </div>
+
+      <Area label="Projects (Name: Description - Technologies used)" value={profile.projects || ''} onChange={v => setProfile({...profile, projects: v})} rows={3} placeholder="JobBot AI: Automated job application system - Node.js, OpenAI, Appwrite
+E-commerce Platform: Full-stack shopping site - React, Stripe, MongoDB" />
+
+      <div className="grid grid-cols-2 gap-4">
+        <Area label="Education" value={profile.education || ''} onChange={v => setProfile({...profile, education: v})} rows={2} placeholder="BSc Computer Science, University of Lagos, 2018" />
+        <Area label="Certifications" value={profile.certifications || ''} onChange={v => setProfile({...profile, certifications: v})} rows={2} placeholder="AWS Certified Developer, Google Cloud Professional" />
+      </div>
+
+      <Area label="Languages" value={profile.languages || ''} onChange={v => setProfile({...profile, languages: v})} rows={1} placeholder="English (Native), Yoruba (Fluent), French (Basic)" />
     </div>
   </motion.div>
 );
@@ -655,6 +693,13 @@ const Input = ({ label, value, onChange, placeholder = "", type = "text" }) => (
   <div>
     <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</label>
     <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all font-medium text-slate-700 shadow-inner" />
+  </div>
+);
+
+const Area = ({ label, value, onChange, rows = 3, placeholder = "" }) => (
+  <div>
+    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</label>
+    <textarea rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all text-sm" />
   </div>
 );
 

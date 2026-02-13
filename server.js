@@ -41,46 +41,58 @@ app.post('/api/download-resume', async (req, res) => {
         const safeCompany = (job.company || 'Company').replace(/\s+/g, '_');
         const filename = `Resume_${safeCompany}_${timestamp}`;
         
-        let highlights = [];
-        let aiSummary = null;
-        
+        let aiData = {};
         if (job.interview_prep) {
             try {
-                const parsed = JSON.parse(job.interview_prep);
-                if (parsed.highlights) highlights = parsed.highlights;
-                if (parsed.summary) aiSummary = parsed.summary;
+                aiData = JSON.parse(job.interview_prep);
             } catch(e) {
-                console.log('Error parsing interview_prep for resume data:', e.message);
+                console.log('Error parsing interview_prep:', e.message);
             }
         }
 
-        // Fallback for highlights if empty
-        if (!highlights || highlights.length === 0) {
-            highlights = profile.skills ? profile.skills.split(',').map(s => s.trim()) : [];
-        }
-
-        // Parse work history if it's a string (from Appwrite)
-        let experience = [];
-        if (profile.work_history) {
-            // Very simple parser for newlines/semicolons
-            const parts = profile.work_history.split(';');
-            experience = parts.map(p => {
-                const [roleComp, desc] = p.split(':');
-                const [role, comp] = (roleComp || '').split(' at ');
+        let workExperience = [];
+        if (aiData.workExperience && aiData.workExperience.length > 0) {
+            workExperience = aiData.workExperience;
+        } else if (profile.work_history) {
+            const parts = profile.work_history.split('\n').filter(p => p.trim());
+            workExperience = parts.map(p => {
+                const [titlePart, ...rest] = p.split('|');
+                const [title, company] = (titlePart || '').split(' at ').map(s => s.trim());
+                const duration = rest.find(r => r.includes('-') || r.includes('Present'))?.trim() || '';
+                const bullets = rest.filter(r => !r.includes('-') && !r.includes('Present')).map(b => b.trim()).filter(Boolean);
                 return {
-                    role: (role || '').trim(),
-                    company: (comp || '').trim(),
-                    description: (desc || '').trim()
+                    title: title || '',
+                    company: company || '',
+                    duration: duration,
+                    bullets: bullets.length > 0 ? bullets : [rest.join(' ').trim()].filter(Boolean)
                 };
-            }).filter(e => e.role);
+            }).filter(e => e.title);
         }
 
-        if (experience.length === 0) {
-            experience = [{
-                role: profile.title || "Software Developer",
-                company: "Professional Freelance",
-                description: profile.summary || "Web development projects"
+        if (workExperience.length === 0) {
+            workExperience = [{
+                title: profile.title || "Software Developer",
+                company: "Professional Experience",
+                duration: "",
+                bullets: [profile.summary || "Web development projects"]
             }];
+        }
+
+        let projects = [];
+        if (aiData.projects && aiData.projects.length > 0) {
+            projects = aiData.projects;
+        } else if (profile.projects) {
+            const projParts = profile.projects.split('\n').filter(p => p.trim());
+            projects = projParts.map(p => {
+                const [name, ...rest] = p.split(':');
+                const desc = rest.join(':').split('-')[0]?.trim() || '';
+                const techPart = rest.join(':').split('-')[1]?.trim() || '';
+                return {
+                    name: name?.trim() || '',
+                    description: desc,
+                    tech: techPart ? techPart.split(',').map(t => t.trim()) : []
+                };
+            }).filter(p => p.name);
         }
 
         const data = {
@@ -88,13 +100,19 @@ app.post('/api/download-resume', async (req, res) => {
             email: profile.email || "",
             phone: profile.phone || "",
             location: profile.location || "Nigeria",
-            summary: aiSummary || job.summary || profile.summary || "Experienced Web Developer",
-            highlights: highlights,
-            experience: experience,
-            education: profile.education || ""
+            summary: aiData.summary || profile.summary || "Experienced Developer",
+            skills: aiData.skills || (profile.skills ? profile.skills.split(',').map(s => s.trim()) : []),
+            workExperience: workExperience,
+            projects: projects,
+            education: profile.education || "",
+            certifications: profile.certifications || "",
+            languages: profile.languages || "",
+            linkedin: profile.linkedin || "",
+            github: profile.github || "",
+            portfolio: profile.portfolio || ""
         };
 
-        console.log('Generating resume with data:', JSON.stringify(data, null, 2));
+        console.log('Generating resume with AI data:', !!aiData.workExperience);
 
         if (format === 'pdf') {
             const filePath = path.join(__dirname, `${filename}.pdf`);
