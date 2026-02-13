@@ -220,6 +220,57 @@ const App = () => {
     }
   };
 
+  const generateAIReview = async () => {
+    try {
+      setLoading(true);
+      // First fetch job details if we don't have description
+      let jobDesc = selectedJob.description;
+      if (!jobDesc) {
+        const scrapeRes = await fetch(`${API_URL}/api/scrape-job`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link: selectedJob.link })
+        });
+        const scrapeData = await scrapeRes.json();
+        jobDesc = scrapeData.description;
+      }
+      
+      if (!jobDesc) {
+        alert('Could not fetch job description. Please run the bot again.');
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/generate-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobDescription: jobDesc,
+          masterData: profile
+        })
+      });
+      const data = await res.json();
+      if (data.interviewPrep) {
+        const reviewData = JSON.stringify({
+          questions: data.interviewPrep,
+          summary: data.summary,
+          highlights: data.highlights
+        });
+        setSelectedJob({ 
+          ...selectedJob, 
+          interview_prep: reviewData,
+          cover_letter: data.coverLetter || selectedJob.cover_letter
+        });
+        alert('AI review generated!');
+      } else {
+        alert('Failed to generate review: ' + (data.error || 'Unknown error'));
+      }
+    } catch (e) {
+      alert('Error generating review: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDownload = async (format) => {
     try {
       setLoading(true);
@@ -397,7 +448,7 @@ const App = () => {
                   />
                 </div>
 
-                {selectedJob.interview_prep && (
+                {selectedJob.interview_prep ? (
                   <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100">
                     <h4 className="flex items-center gap-2 font-bold text-blue-900 mb-4">
                       <FileText className="w-4 h-4" />
@@ -407,6 +458,14 @@ const App = () => {
                       {formatInterviewPrep(selectedJob.interview_prep)}
                     </div>
                   </div>
+                ) : (
+                  <button 
+                    onClick={generateAIReview}
+                    disabled={loading}
+                    className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Rocket className="w-5 h-5" /> {loading ? 'Generating...' : 'Generate AI Review'}
+                  </button>
                 )}
               </div>
 
@@ -425,11 +484,22 @@ const App = () => {
                 </button>
                 <button 
                   onClick={() => handleApply(selectedJob)}
-                  disabled={loading}
-                  className="flex-1 py-4 bg-blue-600 text-white font-bold rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  disabled={loading || !selectedJob.email}
+                  className={`flex-1 py-4 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 ${
+                    selectedJob.email 
+                      ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 hover:bg-blue-700' 
+                      : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                  }`}
                 >
-                  <Mail className="w-5 h-5" /> {loading ? 'Sending...' : 'Approve & Send Application'}
+                  <Mail className="w-5 h-5" /> {loading ? 'Sending...' : selectedJob.email ? 'Approve & Send Application' : 'No Email - Apply Manually'}
                 </button>
+                <a 
+                  href={selectedJob.link} 
+                  target="_blank" 
+                  className="px-6 py-4 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-5 h-5" /> Apply on Site
+                </a>
               </div>
             </motion.div>
           </div>

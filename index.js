@@ -94,23 +94,16 @@ async function runJobBot() {
                 ? await getHotJobDetails(job.link)
                 : await getJobDetails(job.link);
 
-            if (!details || !details.email) {
-                console.log('Skipping: No contact email found.');
-                try {
-                    await databases.createDocument(dbId, colId, ID.unique(), {
-                        title: job.title,
-                        company: job.company,
-                        link: job.link,
-                        applied: false,
-                        status: 'ignored'
-                    });
-                } catch (e) {}
-                continue;
+            const hasEmail = details && details.email;
+            if (!hasEmail) {
+                console.log('No contact email found - will generate content for manual application.');
+            } else {
+                console.log(`Found email: ${details.email}`);
             }
 
-            console.log(`Found email: ${details.email}. Generating tailored CV...`);
+            console.log('Generating tailored CV...');
 
-            let aiContent = await generateTailoredContent(details.description, MASTER_DATA);
+            let aiContent = await generateTailoredContent(details?.description || job.title, MASTER_DATA);
             
             if (aiContent && aiContent.coverLetter) {
                 // Manual fallback for common placeholders
@@ -124,16 +117,16 @@ async function runJobBot() {
             }
             
             const isApprovalMode = process.env.APPROVAL_MODE === 'true';
+            const canAutoApply = hasEmail && !isApprovalMode;
             
             const jobData = {
                 title: job.title,
                 company: job.company,
                 link: job.link,
-                email: details.email,
-                applied: !isApprovalMode,
-                status: isApprovalMode ? 'draft' : 'sent',
+                email: details?.email || '',
+                applied: canAutoApply,
+                status: canAutoApply ? 'sent' : 'draft',
                 cover_letter: aiContent ? aiContent.coverLetter : '',
-                // Combine interview prep and tailored resume parts to save Appwrite attribute space
                 interview_prep: aiContent ? JSON.stringify({
                     questions: aiContent.interviewPrep,
                     summary: aiContent.summary,
@@ -150,10 +143,11 @@ async function runJobBot() {
             }
 
             if (doc) {
-                await sendTelegramAlert(`🚀 <b>New Job Found!</b>\n\n<b>Title:</b> ${job.title}\n<b>Company:</b> ${job.company}\n<b>Status:</b> ${isApprovalMode ? 'Draft (Awaiting Review)' : 'Applied'}\n\n<a href="${job.link}">View Job</a>`);
+                const statusMsg = canAutoApply ? 'Auto-applied' : (hasEmail ? 'Draft (Awaiting Review)' : 'Draft (Manual Apply via Link)');
+                await sendTelegramAlert(`🚀 <b>New Job Found!</b>\n\n<b>Title:</b> ${job.title}\n<b>Company:</b> ${job.company}\n<b>Status:</b> ${statusMsg}\n\n<a href="${job.link}">View Job</a>`);
             }
 
-            if (!isApprovalMode && aiContent) {
+            if (canAutoApply && aiContent) {
                 const pdfData = {
                     ...MASTER_DATA,
                     summary: aiContent.summary,
@@ -178,8 +172,8 @@ async function runJobBot() {
                         status: 'sent'
                     });
                 }
-            } else if (isApprovalMode) {
-                console.log('Approval Mode: Saved as draft for review.');
+            } else {
+                console.log(`Draft saved: ${hasEmail ? 'Awaiting approval' : 'Apply manually via job link'}.`);
             }
         } catch (err) {
             console.error(`Error processing ${job.title}:`, err.message);

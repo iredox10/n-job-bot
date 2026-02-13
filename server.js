@@ -23,6 +23,7 @@ const { applyToJob } = require('./src/logic/apply');
 const { syncGitHubProjects } = require('./src/logic/github_sync');
 const { createResumePDF } = require('./src/pdf/generator');
 const { createResumeWord } = require('./src/pdf/word_generator');
+const { generateTailoredContent } = require('./src/ai/engine');
 
 // Trigger Bot
 app.post('/api/run-bot', (req, res) => {
@@ -130,6 +131,41 @@ app.post('/api/apply', async (req, res) => {
         const { jobId, coverLetter, masterData } = req.body;
         const result = await applyToJob(jobId, coverLetter, masterData);
         res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Generate AI Review Endpoint
+app.post('/api/generate-review', async (req, res) => {
+    try {
+        const { jobDescription, masterData } = req.body;
+        const result = await generateTailoredContent(jobDescription, masterData);
+        if (result) {
+            res.json(result);
+        } else {
+            res.status(500).json({ error: 'Failed to generate review' });
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Scrape Job Details Endpoint
+app.post('/api/scrape-job', async (req, res) => {
+    try {
+        const { link } = req.body;
+        const { getJobDetails } = require('./src/scraper');
+        const { getHotJobDetails } = require('./src/scraper/hotjobs');
+        
+        let details;
+        if (link.includes('hotnigerianjobs')) {
+            details = await getHotJobDetails(link);
+        } else {
+            details = await getJobDetails(link);
+        }
+        
+        res.json({ description: details?.description || '' });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
