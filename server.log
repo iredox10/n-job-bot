@@ -1,40 +1,8 @@
-[dotenv@17.2.4] injecting env (14) from .env -- tip: ⚙️  override existing env vars with { override: true }
-[dotenv@17.2.4] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
-[dotenv@17.2.4] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
-[dotenv@17.2.4] injecting env (0) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+[dotenv@17.2.4] injecting env (17) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+[dotenv@17.2.4] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[dotenv@17.2.4] injecting env (0) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.2.4] injecting env (0) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.2.4] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
 Bot Control API running on http://0.0.0.0:3001
-Generating resume with data: {
-  "name": "Iredox",
-  "email": "",
-  "phone": "",
-  "location": "Nigeria",
-  "summary": "Experienced Web Developer",
-  "highlights": [],
-  "experience": [
-    {
-      "role": "Software Developer",
-      "company": "Various Projects",
-      "description": "Professional Web Developer"
-    }
-  ]
-}
-Generating resume with data: {
-  "name": "idris adam idris",
-  "email": "iredoxtech@gmail.com",
-  "phone": "+234 812580260",
-  "location": "Nigeria",
-  "summary": "Experienced developer looking for automation roles.",
-  "highlights": [
-    "React",
-    "Node.js",
-    "Appwrite",
-    "Tailwind CSS"
-  ],
-  "experience": [
-    {
-      "role": "Full Stack Web Developer",
-      "company": "Various Projects",
-      "description": "Experienced developer looking for automation roles."
-    }
-  ]
-}
+Generating resume with AI data: true
+Generating resume with AI data: true

@@ -60,6 +60,14 @@ async function getMasterData() {
 }
 
 const { sendTelegramAlert } = require('./src/notifications/telegram');
+const { sendWhatsAppAlert } = require('./src/notifications/whatsapp');
+
+async function sendNotifications(message) {
+    await Promise.all([
+        sendTelegramAlert(message),
+        sendWhatsAppAlert(message)
+    ]);
+}
 
 async function runJobBot() {
     console.log('--- Starting Job Search ---');
@@ -146,7 +154,7 @@ async function runJobBot() {
 
             if (doc) {
                 const statusMsg = canAutoApply ? 'Auto-applied' : (hasEmail ? 'Draft (Awaiting Review)' : 'Draft (Manual Apply via Link)');
-                await sendTelegramAlert(`🚀 <b>New Job Found!</b>\n\n<b>Title:</b> ${job.title}\n<b>Company:</b> ${job.company}\n<b>Status:</b> ${statusMsg}\n\n<a href="${job.link}">View Job</a>`);
+                await sendNotifications(`🚀 *New Job Found!*\n\n*Title:* ${job.title}\n*Company:* ${job.company}\n*Status:* ${statusMsg}\n\n${job.link}`);
             }
 
             if (canAutoApply && aiContent) {

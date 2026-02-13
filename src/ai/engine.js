@@ -68,4 +68,89 @@ Remember: NO placeholders. Use real data from the profile. Make everything relev
     }
 }
 
-module.exports = { generateTailoredContent };
+async function calculateATSScore(resumeData, jobDescription) {
+    try {
+        const response = await client.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `You are an ATS (Applicant Tracking System) expert. Analyze how well a resume matches a job description and provide a score and actionable feedback.`
+                },
+                {
+                    role: "user",
+                    content: `
+JOB DESCRIPTION:
+${jobDescription}
+
+RESUME DATA:
+${JSON.stringify(resumeData, null, 2)}
+
+Analyze this resume against the job description and return a JSON object with:
+
+1. "score": A number from 0-100 representing the ATS compatibility score
+2. "keywordMatch": Percentage of job keywords found in resume (0-100)
+3. "missingKeywords": Array of important keywords from job description missing in resume
+4. "strengths": Array of 3-5 things the resume does well for this job
+5. "improvements": Array of 3-5 specific suggestions to improve the score
+6. "formatScore": Score for resume formatting and structure (0-100)
+
+Be strict but fair. A score of 80+ means highly optimized.`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        return JSON.parse(response.choices[0].message.content);
+    } catch (error) {
+        console.error('ATS Score calculation failed:', error.message);
+        return { score: 0, error: error.message };
+    }
+}
+
+async function calculateMatchScore(userProfile, jobDescription) {
+    try {
+        const response = await client.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+                {
+                    role: "system",
+                    content: `You are a job matching expert. Analyze how well a candidate's profile matches a job opening and provide a compatibility score.`
+                },
+                {
+                    role: "user",
+                    content: `
+JOB DESCRIPTION:
+${jobDescription}
+
+CANDIDATE PROFILE:
+${JSON.stringify(userProfile, null, 2)}
+
+Analyze the candidate-job fit and return a JSON object with:
+
+1. "score": Overall match score from 0-100
+2. "skillMatch": Percentage of required skills the candidate has (0-100)
+3. "experienceMatch": How well the experience level matches (0-100)
+4. "locationMatch": Whether location is suitable (100 for match, 50 for remote/hybrid, 0 for mismatch)
+5. "highlights": Array of 3 reasons why this is a good match
+6. "gaps": Array of 2-3 areas where the candidate may fall short
+7. "recommendation": "apply" (score 70+), "consider" (score 50-69), or "skip" (score below 50)
+
+Be realistic in scoring. Consider both hard requirements and nice-to-haves.`
+                }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        return JSON.parse(response.choices[0].message.content);
+    } catch (error) {
+        console.error('Match Score calculation failed:', error.message);
+        return { score: 0, error: error.message };
+    }
+}
+
+module.exports = { 
+    generateTailoredContent, 
+    calculateATSScore, 
+    calculateMatchScore 
+};

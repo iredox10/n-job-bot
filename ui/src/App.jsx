@@ -19,7 +19,13 @@ import {
   ShieldCheck,
   ChevronRight,
   Database,
-  XCircle
+  XCircle,
+  Target,
+  TrendingUp,
+  Calendar,
+  X,
+  Award,
+  AlertCircle
 } from 'lucide-react';
 
 const DATABASE_ID = '69889348002f04dda4db';
@@ -51,6 +57,9 @@ const App = () => {
   const [stats, setStats] = useState({ found: 0, applied: 0, pending: 0, generated: 0 });
   const [selectedJob, setSelectedJob] = useState(null);
   const [reviewMode, setReviewMode] = useState(false);
+  const [atsData, setAtsData] = useState(null);
+  const [matchData, setMatchData] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
   
   const [profile, setProfile] = useState({
     name: 'Iredox',
@@ -332,6 +341,82 @@ const App = () => {
     finally { setLoading(false); }
   };
 
+  const updateJobStatus = async (jobId, statusData) => {
+    try {
+      await fetch(`${API_URL}/api/job/${jobId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(statusData)
+      });
+      fetchJobs();
+    } catch (e) {
+      console.error('Failed to update status:', e);
+    }
+  };
+
+  const calculateScores = async (job) => {
+    if (!job.interview_prep) return;
+    
+    setLoading(true);
+    try {
+      const jobData = JSON.parse(job.interview_prep);
+      
+      const [atsRes, matchRes] = await Promise.all([
+        fetch(`${API_URL}/api/ats-score`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resumeData: { summary: jobData.summary, skills: jobData.skills, workExperience: jobData.workExperience },
+            jobDescription: job.title
+          })
+        }),
+        fetch(`${API_URL}/api/match-score`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userProfile: profile,
+            jobDescription: job.title
+          })
+        })
+      ]);
+      
+      const ats = await atsRes.json();
+      const match = await matchRes.json();
+      
+      setAtsData(ats);
+      setMatchData(match);
+      
+      await fetch(`${API_URL}/api/job/${job.$id}/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ats_score: ats.score, match_score: match.score })
+      });
+      
+      fetchJobs();
+    } catch (e) {
+      console.error('Score calculation failed:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredJobs = jobs.filter(job => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'pending') return !job.applied;
+    if (statusFilter === 'applied') return job.applied && !job.response_status;
+    if (statusFilter === 'responses') return job.response_status;
+    if (statusFilter === 'interviews') return job.interview_date;
+    return true;
+  });
+
+  const trackerStats = {
+    total: jobs.length,
+    draft: jobs.filter(j => j.status === 'draft').length,
+    sent: jobs.filter(j => j.status === 'sent').length,
+    responses: jobs.filter(j => j.response_status).length,
+    interviews: jobs.filter(j => j.interview_date).length
+  };
+
   return (
     <div className="flex h-screen bg-[#F8FAFC]">
       {/* Sidebar */}
@@ -352,6 +437,7 @@ const App = () => {
           {[
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'jobs', label: 'Job Leads', icon: Briefcase },
+            { id: 'tracker', label: 'Applications', icon: Target },
             { id: 'profile', label: 'Master CV', icon: UserCircle },
             { id: 'settings', label: 'Configuration', icon: Settings },
           ].map((item) => (
@@ -422,7 +508,8 @@ const App = () => {
         <main className="flex-1 p-10 overflow-y-auto">
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && <DashboardView stats={stats} jobs={jobs} loading={loading} onRefresh={fetchJobs} onTrigger={triggerBot} />}
-            {activeTab === 'jobs' && <JobsView jobs={jobs} loading={loading} onRefresh={fetchJobs} onReview={(job) => { setSelectedJob(job); setReviewMode(true); }} />}
+            {activeTab === 'jobs' && <JobsView jobs={filteredJobs} loading={loading} onRefresh={fetchJobs} onReview={(job) => { setSelectedJob(job); setAtsData(null); setMatchData(null); setReviewMode(true); }} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
+            {activeTab === 'tracker' && <TrackerView jobs={jobs} stats={trackerStats} onUpdateStatus={updateJobStatus} loading={loading} />}
             {activeTab === 'profile' && <ProfileView profile={profile} setProfile={setProfile} onSave={saveProfile} onSyncGitHub={syncGitHub} loading={loading} />}
             {activeTab === 'settings' && <SettingsView settings={appSettings} setSettings={setAppSettings} onSave={saveSettings} />}
           </AnimatePresence>
@@ -448,6 +535,43 @@ const App = () => {
               </div>
               
               <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                {(selectedJob.ats_score || selectedJob.match_score) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedJob.match_score && (
+                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-blue-600 uppercase">Match Score</span>
+                          <span className={`text-2xl font-black ${parseInt(selectedJob.match_score) >= 70 ? 'text-green-600' : parseInt(selectedJob.match_score) >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                            {selectedJob.match_score}%
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">How well you fit this role</p>
+                      </div>
+                    )}
+                    {selectedJob.ats_score && (
+                      <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-green-600 uppercase">ATS Score</span>
+                          <span className={`text-2xl font-black ${parseInt(selectedJob.ats_score) >= 80 ? 'text-green-600' : parseInt(selectedJob.ats_score) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
+                            {selectedJob.ats_score}%
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500">Resume optimization level</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {selectedJob.interview_prep && !selectedJob.ats_score && (
+                  <button 
+                    onClick={() => calculateScores(selectedJob)}
+                    disabled={loading}
+                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Award className="w-5 h-5" /> {loading ? 'Calculating...' : 'Calculate Scores'}
+                  </button>
+                )}
+                
                 <div>
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">AI Tailored Cover Letter</label>
                   <textarea 
@@ -561,14 +685,26 @@ const DashboardView = ({ stats, jobs, loading, onRefresh, onTrigger }) => (
   </motion.div>
 );
 
-const JobsView = ({ jobs, loading, onRefresh, onReview }) => (
+const JobsView = ({ jobs, loading, onRefresh, onReview, statusFilter, setStatusFilter }) => (
   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <div className="flex gap-2 mb-4">
+      {['all', 'pending', 'applied'].map(filter => (
+        <button 
+          key={filter}
+          onClick={() => setStatusFilter(filter)}
+          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${statusFilter === filter ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+        >
+          {filter.charAt(0).toUpperCase() + filter.slice(1)}
+        </button>
+      ))}
+    </div>
     <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
       <table className="w-full text-left">
         <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
           <tr>
             <th className="px-8 py-4">Position</th>
             <th className="px-8 py-4">Company</th>
+            <th className="px-8 py-4">Match</th>
             <th className="px-8 py-4">Status</th>
             <th className="px-8 py-4">Date Found</th>
             <th className="px-8 py-4 text-right">Actions</th>
@@ -580,15 +716,22 @@ const JobsView = ({ jobs, loading, onRefresh, onReview }) => (
               <td className="px-8 py-5 font-bold text-slate-900">{job.title}</td>
               <td className="px-8 py-5 text-slate-600">{job.company}</td>
               <td className="px-8 py-5">
+                {job.match_score ? (
+                  <span className={`px-3 py-1 rounded-lg text-sm font-black ${parseInt(job.match_score) >= 70 ? 'bg-green-100 text-green-700' : parseInt(job.match_score) >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                    {job.match_score}%
+                  </span>
+                ) : (
+                  <span className="text-xs text-slate-400">—</span>
+                )}
+              </td>
+              <td className="px-8 py-5">
                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold ${job.applied ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
                   {job.applied ? 'APPLIED' : 'DRAFT'}
                 </span>
               </td>
               <td className="px-8 py-5 text-sm text-slate-400">{new Date(job.$createdAt).toLocaleDateString()}</td>
               <td className="px-8 py-5 text-right space-x-3">
-                {!job.applied && (
-                  <button onClick={() => onReview(job)} className="text-blue-600 hover:text-blue-800 font-bold text-xs">REVIEW</button>
-                )}
+                <button onClick={() => onReview(job)} className="text-blue-600 hover:text-blue-800 font-bold text-xs">REVIEW</button>
                 <a href={job.link} target="_blank" className="text-slate-400 hover:text-blue-600 inline-flex items-center gap-1 font-bold text-xs">GO <ExternalLink className="w-3 h-3" /></a>
               </td>
             </tr>
@@ -598,6 +741,93 @@ const JobsView = ({ jobs, loading, onRefresh, onReview }) => (
     </div>
   </motion.div>
 );
+
+const TrackerView = ({ jobs, stats, onUpdateStatus, loading }) => {
+  const [selectedTracker, setSelectedTracker] = useState(null);
+  
+  const responseOptions = ['pending', 'rejected', 'interview', 'offer'];
+  
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+      <div className="grid grid-cols-5 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100">
+          <p className="text-xs font-bold text-slate-400 uppercase">Total</p>
+          <p className="text-3xl font-black text-slate-900 mt-1">{stats.total}</p>
+        </div>
+        <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100">
+          <p className="text-xs font-bold text-amber-600 uppercase">Draft</p>
+          <p className="text-3xl font-black text-amber-700 mt-1">{stats.draft}</p>
+        </div>
+        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+          <p className="text-xs font-bold text-blue-600 uppercase">Sent</p>
+          <p className="text-3xl font-black text-blue-700 mt-1">{stats.sent}</p>
+        </div>
+        <div className="bg-purple-50 p-5 rounded-2xl border border-purple-100">
+          <p className="text-xs font-bold text-purple-600 uppercase">Responses</p>
+          <p className="text-3xl font-black text-purple-700 mt-1">{stats.responses}</p>
+        </div>
+        <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
+          <p className="text-xs font-bold text-green-600 uppercase">Interviews</p>
+          <p className="text-3xl font-black text-green-700 mt-1">{stats.interviews}</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+            <tr>
+              <th className="px-6 py-4">Company</th>
+              <th className="px-6 py-4">Position</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4">Response</th>
+              <th className="px-6 py-4">Interview</th>
+              <th className="px-6 py-4">Salary</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {jobs.filter(j => j.applied || j.status === 'draft').map(job => (
+              <tr key={job.$id} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => setSelectedTracker(selectedTracker === job.$id ? null : job.$id)}>
+                <td className="px-6 py-4 font-bold text-slate-900">{job.company}</td>
+                <td className="px-6 py-4 text-slate-600 text-sm">{job.title}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${job.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {job.status?.toUpperCase() || 'DRAFT'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <select 
+                    value={job.response_status || 'pending'}
+                    onChange={(e) => { e.stopPropagation(); onUpdateStatus(job.$id, { response_status: e.target.value, response_date: new Date().toISOString().split('T')[0] }); }}
+                    className={`text-xs font-bold px-2 py-1 rounded-lg border-0 cursor-pointer ${
+                      job.response_status === 'rejected' ? 'bg-red-100 text-red-700' :
+                      job.response_status === 'interview' ? 'bg-purple-100 text-purple-700' :
+                      job.response_status === 'offer' ? 'bg-green-100 text-green-700' :
+                      'bg-slate-100 text-slate-600'
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {responseOptions.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+                  </select>
+                </td>
+                <td className="px-6 py-4">
+                  {job.interview_date ? (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-purple-500" />
+                      <span className="text-sm font-medium text-purple-700">{new Date(job.interview_date).toLocaleDateString()}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400">Not scheduled</span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm text-slate-500">{job.salary_range || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </motion.div>
+  );
+};
 
 const ProfileView = ({ profile, setProfile, onSave, onSyncGitHub, loading }) => (
   <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-5xl mx-auto bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">

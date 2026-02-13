@@ -23,7 +23,7 @@ const { applyToJob } = require('./src/logic/apply');
 const { syncGitHubProjects } = require('./src/logic/github_sync');
 const { createResumePDF } = require('./src/pdf/generator');
 const { createResumeWord } = require('./src/pdf/word_generator');
-const { generateTailoredContent } = require('./src/ai/engine');
+const { generateTailoredContent, calculateATSScore, calculateMatchScore } = require('./src/ai/engine');
 
 // Trigger Bot
 app.post('/api/run-bot', (req, res) => {
@@ -239,6 +239,65 @@ app.post('/api/settings', (req, res) => {
         if (keywords) envContent = envContent.replace(/JOB_KEYWORDS=.*/, `JOB_KEYWORDS="${keywords}"`);
         if (gmail_user) envContent = envContent.replace(/GMAIL_USER=.*/, `GMAIL_USER="${gmail_user}"`);
         fs.writeFileSync(ENV_PATH, envContent);
+        res.json({ status: 'success' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Update Job Status (Application Tracker)
+app.post('/api/job/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { response_status, response_date, interview_date, interview_type, salary_range } = req.body;
+        
+        const updateData = {};
+        if (response_status) updateData.response_status = response_status;
+        if (response_date) updateData.response_date = response_date;
+        if (interview_date) updateData.interview_date = interview_date;
+        if (interview_type) updateData.interview_type = interview_type;
+        if (salary_range) updateData.salary_range = salary_range;
+        
+        await databases.updateDocument(process.env.DATABASE_ID, process.env.JOBS_COLLECTION_ID, id, updateData);
+        res.json({ status: 'success' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Calculate ATS Score
+app.post('/api/ats-score', async (req, res) => {
+    try {
+        const { resumeData, jobDescription } = req.body;
+        const result = await calculateATSScore(resumeData, jobDescription);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Calculate Match Score
+app.post('/api/match-score', async (req, res) => {
+    try {
+        const { userProfile, jobDescription } = req.body;
+        const result = await calculateMatchScore(userProfile, jobDescription);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Save Score to Job
+app.post('/api/job/:id/score', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { ats_score, match_score } = req.body;
+        
+        const updateData = {};
+        if (ats_score !== undefined) updateData.ats_score = String(ats_score);
+        if (match_score !== undefined) updateData.match_score = String(match_score);
+        
+        await databases.updateDocument(process.env.DATABASE_ID, process.env.JOBS_COLLECTION_ID, id, updateData);
         res.json({ status: 'success' });
     } catch (e) {
         res.status(500).json({ error: e.message });
