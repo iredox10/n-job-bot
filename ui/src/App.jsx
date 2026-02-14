@@ -16,16 +16,31 @@ import {
   ExternalLink,
   Save,
   Rocket,
-  ShieldCheck,
-  ChevronRight,
   Database,
   XCircle,
   Target,
-  TrendingUp,
   Calendar,
-  X,
   Award,
-  AlertCircle
+  TrendingUp,
+  Zap,
+  Sparkles,
+  ChevronDown,
+  Filter,
+  Download,
+  Send,
+  Building2,
+  MapPin,
+  Phone,
+  Globe,
+  Linkedin,
+  Github,
+  GraduationCap,
+  Languages,
+  BriefcaseBusiness,
+  AlertCircle,
+  CheckCircle,
+  X,
+  Loader2
 } from 'lucide-react';
 
 const DATABASE_ID = '69889348002f04dda4db';
@@ -39,14 +54,24 @@ const formatInterviewPrep = (data) => {
     const questions = parsed.questions || parsed;
     if (Array.isArray(questions)) {
       return questions.map((item, i) => (
-        <div key={i} className="mb-4 last:mb-0">
-          <p className="font-bold text-blue-900">Q: {item.question}</p>
-          <p className="mt-1 text-blue-800">A: {item.answer || item.expectedAnswer}</p>
+        <div key={i} className="p-4 bg-sky-50 rounded-xl border border-sky-100">
+          <p className="font-semibold text-sky-900 flex items-start gap-2">
+            <span className="text-sky-500 font-bold">Q{i+1}:</span> 
+            {item.question}
+          </p>
+          <p className="mt-2 text-sky-700 text-sm leading-relaxed pl-6">{item.answer || item.expectedAnswer}</p>
         </div>
       ));
     }
   } catch (e) {}
   return <div className="whitespace-pre-wrap">{data}</div>;
+};
+
+const getScoreColor = (score) => {
+  const s = parseInt(score);
+  if (s >= 80) return { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200' };
+  if (s >= 60) return { bg: 'bg-amber-100', text: 'text-amber-700', ring: 'ring-amber-200' };
+  return { bg: 'bg-red-100', text: 'text-red-700', ring: 'ring-red-200' };
 };
 
 const App = () => {
@@ -60,6 +85,7 @@ const App = () => {
   const [atsData, setAtsData] = useState(null);
   const [matchData, setMatchData] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   const [profile, setProfile] = useState({
     name: 'Iredox',
@@ -161,9 +187,9 @@ const App = () => {
         const newDoc = await databases.createDocument(DATABASE_ID, PROFILE_COLL_ID, ID.unique(), data);
         setProfile(newDoc);
       }
-      alert('Profile saved successfully!');
+      showToast('Profile saved successfully!', 'success');
     } catch (e) { 
-      alert('Error saving profile: ' + e.message); 
+      showToast('Error saving profile: ' + e.message, 'error');
     } finally { 
       setLoading(false); 
     }
@@ -178,9 +204,9 @@ const App = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(appSettings)
       });
-      alert('Settings saved!');
+      showToast('Settings saved!', 'success');
     } catch (e) { 
-      alert('Failed to save settings'); 
+      showToast('Failed to save settings', 'error');
     } finally {
       setLoading(false);
     }
@@ -190,9 +216,9 @@ const App = () => {
     try {
       setIsBotRunning(true);
       await fetch(`${API_URL}/api/run-bot`, { method: 'POST' });
-      alert('Job Bot sequence initiated!');
+      showToast('Job Bot started! Check back in a few minutes.', 'success');
     } catch (error) { 
-      alert('Bot server unreachable.'); 
+      showToast('Bot server unreachable.', 'error');
     } finally { 
       setTimeout(() => setIsBotRunning(false), 5000); 
     }
@@ -201,12 +227,11 @@ const App = () => {
   const initializeDatabase = async () => {
     try {
       setLoading(true);
-      alert('Initializing database structure via backend...');
       await fetch(`${API_URL}/api/init-db`, { method: 'POST' });
       await fetchProfile();
-      alert('Database initialization triggered. Please wait a few seconds and refresh.');
+      showToast('Database initialized successfully!', 'success');
     } catch (e) {
-      alert('Initialization failed.');
+      showToast('Initialization failed.', 'error');
     } finally {
       setLoading(false);
     }
@@ -226,14 +251,14 @@ const App = () => {
       });
       const data = await res.json();
       if (data.success) {
-        alert('Application sent successfully!');
+        showToast('Application sent successfully!', 'success');
         fetchJobs();
         setReviewMode(false);
       } else {
-        alert('Failed to send application: ' + data.error);
+        showToast('Failed to send application: ' + data.error, 'error');
       }
     } catch (e) {
-      alert('Error: ' + e.message);
+      showToast('Error: ' + e.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -242,7 +267,6 @@ const App = () => {
   const generateAIReview = async () => {
     try {
       setLoading(true);
-      // First fetch job details if we don't have description
       let jobDesc = selectedJob.description;
       if (!jobDesc) {
         const scrapeRes = await fetch(`${API_URL}/api/scrape-job`, {
@@ -255,7 +279,7 @@ const App = () => {
       }
       
       if (!jobDesc) {
-        alert('Could not fetch job description. Please run the bot again.');
+        showToast('Could not fetch job description.', 'error');
         return;
       }
 
@@ -279,12 +303,12 @@ const App = () => {
           interview_prep: reviewData,
           cover_letter: data.coverLetter || selectedJob.cover_letter
         });
-        alert('AI review generated!');
+        showToast('AI review generated!', 'success');
       } else {
-        alert('Failed to generate review: ' + (data.error || 'Unknown error'));
+        showToast('Failed to generate review', 'error');
       }
     } catch (e) {
-      alert('Error generating review: ' + e.message);
+      showToast('Error generating review: ' + e.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -317,9 +341,9 @@ const App = () => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      showToast('Resume downloaded!', 'success');
     } catch (e) {
-      console.error('Download error:', e);
-      alert('Download failed: ' + e.message);
+      showToast('Download failed: ' + e.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -335,9 +359,9 @@ const App = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
       });
-      alert('GitHub projects synced to profile!');
+      showToast('GitHub projects synced!', 'success');
       fetchProfile();
-    } catch (e) { alert('Sync failed'); }
+    } catch (e) { showToast('Sync failed', 'error'); }
     finally { setLoading(false); }
   };
 
@@ -393,11 +417,21 @@ const App = () => {
       });
       
       fetchJobs();
+      showToast('Scores calculated!', 'success');
     } catch (e) {
-      console.error('Score calculation failed:', e);
+      showToast('Score calculation failed', 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const showToast = (message, type = 'info') => {
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-sky-600';
+    toast.className = `fixed bottom-6 right-6 ${bgColor} text-white px-6 py-3 rounded-xl shadow-lg z-50 animate-fade-in font-medium`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   };
 
   const filteredJobs = jobs.filter(job => {
@@ -417,147 +451,167 @@ const App = () => {
     interviews: jobs.filter(j => j.interview_date).length
   };
 
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'jobs', label: 'Job Leads', icon: Briefcase },
+    { id: 'tracker', label: 'Applications', icon: Target },
+    { id: 'profile', label: 'Master CV', icon: UserCircle },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
+
   return (
-    <div className="flex h-screen bg-[#F8FAFC]">
-      {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-        <div className="p-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
-              <Rocket className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 leading-tight">JobBot AI</h1>
-              <p className="text-xs text-slate-400 font-medium uppercase">Automated Career</p>
-            </div>
-          </div>
-        </div>
-        
-        <nav className="flex-1 px-4 space-y-1.5">
-          {[
-            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { id: 'jobs', label: 'Job Leads', icon: Briefcase },
-            { id: 'tracker', label: 'Applications', icon: Target },
-            { id: 'profile', label: 'Master CV', icon: UserCircle },
-            { id: 'settings', label: 'Configuration', icon: Settings },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all duration-200 ${
-                activeTab === item.id 
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-100' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <item.icon className="w-5 h-5" />
-                <span className="font-semibold text-[15px]">{item.label}</span>
+    <div className="min-h-screen bg-gradient-to-br from-sky-50 via-white to-blue-50">
+      <div className="flex">
+        <aside className={`fixed left-0 top-0 h-screen bg-white/80 backdrop-blur-xl border-r border-sky-100 flex flex-col transition-all duration-300 z-40 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
+          <div className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-sky-200/50">
+                <Zap className="w-5 h-5 text-white" />
               </div>
-              {activeTab === item.id && <ChevronRight className="w-4 h-4 opacity-50" />}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-6 space-y-3">
-          <button 
-            onClick={initializeDatabase}
-            className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-blue-600 text-xs font-bold py-2 border border-dashed border-slate-200 rounded-xl hover:border-blue-200 transition-all"
-          >
-            <Database className="w-3 h-3" /> Fix DB Structure
-          </button>
+              {!sidebarCollapsed && (
+                <div>
+                  <h1 className="text-lg font-bold text-sky-900">JobBot</h1>
+                  <p className="text-xs text-sky-500 font-medium">AI Career Assistant</p>
+                </div>
+              )}
+            </div>
+          </div>
           
-          <div className="bg-slate-900 rounded-2xl p-5 text-white overflow-hidden relative group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/10 rounded-full -mr-8 -mt-8 group-hover:scale-110 transition-transform"></div>
-            <div className="relative z-10">
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Bot Engine</p>
-              <p className="text-sm font-medium mt-1">{isBotRunning ? 'Scraping Leads...' : 'Engine Ready'}</p>
-              <button 
-                onClick={triggerBot}
-                disabled={isBotRunning}
-                className="w-full mt-4 bg-white hover:bg-slate-100 disabled:bg-slate-700 text-slate-900 text-xs font-bold py-2.5 rounded-xl transition-all active:scale-95 shadow-lg"
+          <nav className="flex-1 px-3 space-y-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 cursor-pointer ${
+                  activeTab === item.id 
+                    ? 'bg-sky-100 text-sky-700 shadow-sm' 
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
               >
-                {isBotRunning ? 'Processing...' : 'Deploy Bot Now'}
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span className="font-medium">{item.label}</span>}
               </button>
-            </div>
-          </div>
-        </div>
-      </aside>
+            ))}
+          </nav>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-10 sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-slate-800 capitalize">
-              {activeTab}
-            </h2>
-            {loading && <RefreshCcw className="w-4 h-4 text-blue-500 animate-spin" />}
+          <div className="p-4 space-y-3">
+            <button 
+              onClick={initializeDatabase}
+              className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-sky-600 text-xs font-medium py-2 border border-dashed border-slate-200 rounded-xl hover:border-sky-200 transition-all"
+            >
+              <Database className="w-4 h-4" /> 
+              {!sidebarCollapsed && 'Fix DB'}
+            </button>
+            
+            <div className="bg-gradient-to-br from-sky-500 to-blue-600 rounded-xl p-4 text-white overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-white/10 rounded-full -mr-4 -mt-4"></div>
+              {!sidebarCollapsed ? (
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wider opacity-80">Bot Engine</span>
+                  </div>
+                  <p className="text-sm font-medium">{isBotRunning ? 'Running...' : 'Ready'}</p>
+                  <button 
+                    onClick={triggerBot}
+                    disabled={isBotRunning}
+                    className="w-full mt-3 bg-white text-sky-700 text-xs font-bold py-2.5 rounded-lg transition-all active:scale-95 shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer"
+                  >
+                    {isBotRunning ? 'Processing...' : 'Start Search'}
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={triggerBot}
+                  disabled={isBotRunning}
+                  className="w-full h-10 flex items-center justify-center cursor-pointer"
+                >
+                  <Rocket className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
           
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex flex-col items-end">
-              <span className="text-sm font-bold text-slate-900">{profile.name}</span>
-              <span className="text-xs text-green-500 font-medium">System Online</span>
-            </div>
-            <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-inner ring-4 ring-slate-50">
-              {profile.name[0]}
-            </div>
-          </div>
-        </header>
+          <button 
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="absolute -right-3 top-20 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-sky-600 shadow-sm cursor-pointer"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : '-rotate-90'}`} />
+          </button>
+        </aside>
 
-        <main className="flex-1 p-10 overflow-y-auto">
-          <AnimatePresence mode="wait">
-            {activeTab === 'dashboard' && <DashboardView stats={stats} jobs={jobs} loading={loading} onRefresh={fetchJobs} onTrigger={triggerBot} />}
-            {activeTab === 'jobs' && <JobsView jobs={filteredJobs} loading={loading} onRefresh={fetchJobs} onReview={(job) => { setSelectedJob(job); setAtsData(null); setMatchData(null); setReviewMode(true); }} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
-            {activeTab === 'tracker' && <TrackerView jobs={jobs} stats={trackerStats} onUpdateStatus={updateJobStatus} loading={loading} />}
-            {activeTab === 'profile' && <ProfileView profile={profile} setProfile={setProfile} onSave={saveProfile} onSyncGitHub={syncGitHub} loading={loading} />}
-            {activeTab === 'settings' && <SettingsView settings={appSettings} setSettings={setAppSettings} onSave={saveSettings} />}
-          </AnimatePresence>
+        <main className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+          <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-sky-100">
+            <div className="px-8 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-bold text-sky-900 capitalize">
+                  {activeTab === 'tracker' ? 'Applications' : activeTab}
+                </h2>
+                {loading && (
+                  <div className="flex items-center gap-2 text-sky-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Loading...</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-semibold text-slate-800">{profile.name}</p>
+                  <p className="text-xs text-emerald-600 font-medium flex items-center gap-1 justify-end">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                    System Online
+                  </p>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-sky-400 to-blue-500 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-sky-200/50">
+                  {profile.name?.[0] || 'U'}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <div className="p-8">
+            <AnimatePresence mode="wait">
+              {activeTab === 'dashboard' && <DashboardView stats={stats} jobs={jobs} loading={loading} onRefresh={fetchJobs} onTrigger={triggerBot} isBotRunning={isBotRunning} />}
+              {activeTab === 'jobs' && <JobsView jobs={filteredJobs} loading={loading} onRefresh={fetchJobs} onReview={(job) => { setSelectedJob(job); setAtsData(null); setMatchData(null); setReviewMode(true); }} statusFilter={statusFilter} setStatusFilter={setStatusFilter} />}
+              {activeTab === 'tracker' && <TrackerView jobs={jobs} stats={trackerStats} onUpdateStatus={updateJobStatus} loading={loading} />}
+              {activeTab === 'profile' && <ProfileView profile={profile} setProfile={setProfile} onSave={saveProfile} onSyncGitHub={syncGitHub} loading={loading} />}
+              {activeTab === 'settings' && <SettingsView settings={appSettings} setSettings={setAppSettings} onSave={saveSettings} loading={loading} />}
+            </AnimatePresence>
+          </div>
         </main>
       </div>
 
-      {/* Review Modal */}
       <AnimatePresence>
         {reviewMode && selectedJob && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm" onClick={() => setReviewMode(false)}>
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              onClick={e => e.stopPropagation()}
             >
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-sky-50 to-blue-50">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">Review Application</h3>
-                  <p className="text-sm text-slate-500">{selectedJob.title} @ {selectedJob.company}</p>
+                  <h3 className="text-lg font-bold text-slate-900">{selectedJob.title}</h3>
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                    <Building2 className="w-4 h-4" /> {selectedJob.company}
+                  </p>
                 </div>
-                <button onClick={() => setReviewMode(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><XCircle className="w-6 h-6 text-slate-400" /></button>
+                <button onClick={() => setReviewMode(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer">
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {(selectedJob.ats_score || selectedJob.match_score) && (
                   <div className="grid grid-cols-2 gap-4">
                     {selectedJob.match_score && (
-                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-blue-600 uppercase">Match Score</span>
-                          <span className={`text-2xl font-black ${parseInt(selectedJob.match_score) >= 70 ? 'text-green-600' : parseInt(selectedJob.match_score) >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                            {selectedJob.match_score}%
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">How well you fit this role</p>
-                      </div>
+                      <ScoreCard type="match" score={selectedJob.match_score} />
                     )}
                     {selectedJob.ats_score && (
-                      <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-green-600 uppercase">ATS Score</span>
-                          <span className={`text-2xl font-black ${parseInt(selectedJob.ats_score) >= 80 ? 'text-green-600' : parseInt(selectedJob.ats_score) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
-                            {selectedJob.ats_score}%
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">Resume optimization level</p>
-                      </div>
+                      <ScoreCard type="ats" score={selectedJob.ats_score} />
                     )}
                   </div>
                 )}
@@ -566,29 +620,30 @@ const App = () => {
                   <button 
                     onClick={() => calculateScores(selectedJob)}
                     disabled={loading}
-                    className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-gradient-to-r from-sky-500 to-blue-500 text-white font-semibold rounded-xl hover:from-sky-600 hover:to-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-sky-200/50 cursor-pointer disabled:opacity-50"
                   >
-                    <Award className="w-5 h-5" /> {loading ? 'Calculating...' : 'Calculate Scores'}
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Award className="w-5 h-5" />} 
+                    {loading ? 'Calculating...' : 'Calculate Scores'}
                   </button>
                 )}
                 
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3">AI Tailored Cover Letter</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Cover Letter</label>
                   <textarea 
-                    rows="12" 
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all font-medium text-slate-700 leading-relaxed"
-                    value={selectedJob.cover_letter}
+                    rows={10}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition-all text-slate-700 leading-relaxed resize-none"
+                    value={selectedJob.cover_letter || ''}
                     onChange={(e) => setSelectedJob({...selectedJob, cover_letter: e.target.value})}
                   />
                 </div>
 
                 {selectedJob.interview_prep ? (
-                  <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100">
-                    <h4 className="flex items-center gap-2 font-bold text-blue-900 mb-4">
-                      <FileText className="w-4 h-4" />
-                      AI Interview Prep
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-sky-500" />
+                      Interview Prep
                     </h4>
-                    <div className="text-sm text-blue-800 leading-relaxed">
+                    <div className="space-y-3">
                       {formatInterviewPrep(selectedJob.interview_prep)}
                     </div>
                   </div>
@@ -596,44 +651,46 @@ const App = () => {
                   <button 
                     onClick={generateAIReview}
                     disabled={loading}
-                    className="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white font-semibold rounded-xl hover:from-violet-600 hover:to-purple-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-violet-200/50 cursor-pointer disabled:opacity-50"
                   >
-                    <Rocket className="w-5 h-5" /> {loading ? 'Generating...' : 'Generate AI Review'}
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} 
+                    {loading ? 'Generating...' : 'Generate AI Content'}
                   </button>
                 )}
               </div>
 
-              <div className="p-8 border-t border-slate-100 flex gap-4 bg-slate-50/30">
+              <div className="px-6 py-4 border-t border-slate-100 flex flex-wrap gap-3 bg-slate-50">
                 <button 
                   onClick={() => handleDownload('pdf')}
-                  className="px-6 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                  className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <FileText className="w-5 h-5 text-red-500" /> Download PDF
+                  <Download className="w-4 h-4" /> PDF
                 </button>
                 <button 
                   onClick={() => handleDownload('word')}
-                  className="px-6 py-4 bg-white border border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
+                  className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <Briefcase className="w-5 h-5 text-blue-500" /> Download Word
-                </button>
-                <button 
-                  onClick={() => handleApply(selectedJob)}
-                  disabled={loading || !selectedJob.email}
-                  className={`flex-1 py-4 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 ${
-                    selectedJob.email 
-                      ? 'bg-blue-600 text-white shadow-xl shadow-blue-200 hover:bg-blue-700' 
-                      : 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  <Mail className="w-5 h-5" /> {loading ? 'Sending...' : selectedJob.email ? 'Approve & Send Application' : 'No Email - Apply Manually'}
+                  <FileText className="w-4 h-4" /> Word
                 </button>
                 <a 
                   href={selectedJob.link} 
-                  target="_blank" 
-                  className="px-6 py-4 bg-green-600 text-white font-bold rounded-2xl hover:bg-green-700 transition-all flex items-center justify-center gap-2"
+                  target="_blank"
+                  className="px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <ExternalLink className="w-5 h-5" /> Apply on Site
+                  <ExternalLink className="w-4 h-4" /> View Job
                 </a>
+                <button 
+                  onClick={() => handleApply(selectedJob)}
+                  disabled={loading || !selectedJob.email}
+                  className={`flex-1 py-2.5 font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    selectedJob.email 
+                      ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-200/50 hover:from-emerald-600 hover:to-green-600' 
+                      : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Send className="w-4 h-4" /> 
+                  {selectedJob.email ? 'Send Application' : 'No Email'}
+                </button>
               </div>
             </motion.div>
           </div>
@@ -643,43 +700,82 @@ const App = () => {
   );
 };
 
-// --- Sub-Views ---
+const ScoreCard = ({ type, score }) => {
+  const colors = getScoreColor(score);
+  const label = type === 'match' ? 'Job Match' : 'ATS Score';
+  const desc = type === 'match' ? 'Profile compatibility' : 'Resume optimization';
+  
+  return (
+    <div className={`${colors.bg} p-4 rounded-xl border ${colors.ring} ring-1`}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-semibold text-slate-600">{label}</span>
+        <span className={`text-2xl font-black ${colors.text}`}>{score}%</span>
+      </div>
+      <p className="text-xs text-slate-500">{desc}</p>
+    </div>
+  );
+};
 
-const DashboardView = ({ stats, jobs, loading, onRefresh, onTrigger }) => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-10">
-    <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-3xl p-10 text-white shadow-2xl shadow-blue-200">
-      <h3 className="text-3xl font-extrabold mb-3">Welcome to JobBot AI</h3>
-      <p className="text-blue-100 text-lg opacity-90 max-w-xl">Automating your job search in Nigeria. Sit back while we tailor your CV and apply to roles daily.</p>
-      <div className="flex gap-4 mt-8">
-        <button onClick={onTrigger} className="bg-white text-blue-800 px-6 py-3 rounded-xl font-bold text-sm shadow-xl hover:bg-blue-50">Deploy New Search</button>
+const DashboardView = ({ stats, jobs, loading, onRefresh, onTrigger, isBotRunning }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+    <div className="bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-500 rounded-2xl p-8 text-white relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-10 -mb-10"></div>
+      <div className="relative z-10">
+        <h3 className="text-2xl font-bold mb-2">Welcome back!</h3>
+        <p className="text-sky-100 max-w-lg">Your AI-powered job search assistant is working 24/7 to find and apply to the best opportunities for you.</p>
+        <button 
+          onClick={onTrigger} 
+          disabled={isBotRunning}
+          className="mt-6 bg-white text-blue-600 px-6 py-3 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+        >
+          {isBotRunning ? 'Searching...' : 'Start New Search'}
+        </button>
       </div>
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <StatBox label="Total Leads" value={stats.found} icon={Search} color="text-blue-600" />
-      <StatBox label="Applications" value={stats.applied} icon={Mail} color="text-green-600" />
-      <StatBox label="Pending" value={stats.pending} icon={Clock} color="text-amber-600" />
-      <StatBox label="CVs Tailored" value={stats.generated} icon={FileText} color="text-indigo-600" />
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatCard label="Total Leads" value={stats.found} icon={Briefcase} color="sky" />
+      <StatCard label="Applications" value={stats.applied} icon={Send} color="emerald" />
+      <StatCard label="Pending" value={stats.pending} icon={Clock} color="amber" />
+      <StatCard label="CVs Generated" value={stats.generated} icon={FileText} color="violet" />
     </div>
 
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="p-8 border-b border-slate-50 flex items-center justify-between">
-        <h3 className="text-lg font-bold text-slate-900">Recent Job Opportunities</h3>
-        <button onClick={onRefresh} className="p-2.5 text-slate-400 hover:text-blue-600"><RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 className="font-bold text-slate-800">Recent Opportunities</h3>
+        <button onClick={onRefresh} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer">
+          <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
-      <div className="p-4 divide-y divide-slate-50">
-        {jobs.slice(0, 5).map(job => (
-          <div key={job.$id} className="flex items-center justify-between py-4 px-2 hover:bg-slate-50 rounded-xl transition-all group">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600"><Briefcase className="w-5 h-5" /></div>
-              <div>
-                <h5 className="font-bold text-slate-900">{job.title}</h5>
-                <p className="text-xs text-slate-500">{job.company}</p>
+      <div className="divide-y divide-slate-100">
+        {jobs.length === 0 ? (
+          <EmptyState message="No jobs found yet. Start a search to find opportunities!" />
+        ) : (
+          jobs.slice(0, 5).map(job => (
+            <div key={job.$id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center text-sky-600">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <h5 className="font-semibold text-slate-800">{job.title}</h5>
+                  <p className="text-sm text-slate-500">{job.company}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {job.match_score && (
+                  <span className={`px-2 py-1 rounded-lg text-xs font-bold ${getScoreColor(job.match_score).bg} ${getScoreColor(job.match_score).text}`}>
+                    {job.match_score}%
+                  </span>
+                )}
+                <a href={job.link} target="_blank" className="p-2 text-slate-300 group-hover:text-sky-600 transition-colors cursor-pointer">
+                  <ExternalLink className="w-4 h-4" />
+                </a>
               </div>
             </div>
-            <a href={job.link} target="_blank" className="p-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-all"><ExternalLink /></a>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   </motion.div>
@@ -687,249 +783,284 @@ const DashboardView = ({ stats, jobs, loading, onRefresh, onTrigger }) => (
 
 const JobsView = ({ jobs, loading, onRefresh, onReview, statusFilter, setStatusFilter }) => (
   <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-    <div className="flex gap-2 mb-4">
-      {['all', 'pending', 'applied'].map(filter => (
-        <button 
-          key={filter}
-          onClick={() => setStatusFilter(filter)}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${statusFilter === filter ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-        >
-          {filter.charAt(0).toUpperCase() + filter.slice(1)}
-        </button>
-      ))}
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        {['all', 'pending', 'applied', 'responses', 'interviews'].map(filter => (
+          <button 
+            key={filter}
+            onClick={() => setStatusFilter(filter)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              statusFilter === filter 
+                ? 'bg-sky-100 text-sky-700' 
+                : 'text-slate-500 hover:bg-slate-100'
+            }`}
+          >
+            {filter.charAt(0).toUpperCase() + filter.slice(1)}
+          </button>
+        ))}
+      </div>
+      <button onClick={onRefresh} className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer">
+        <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+      </button>
     </div>
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-      <table className="w-full text-left">
-        <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-          <tr>
-            <th className="px-8 py-4">Position</th>
-            <th className="px-8 py-4">Company</th>
-            <th className="px-8 py-4">Match</th>
-            <th className="px-8 py-4">Status</th>
-            <th className="px-8 py-4">Date Found</th>
-            <th className="px-8 py-4 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
+
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {jobs.length === 0 ? (
+        <EmptyState message="No jobs match your filter. Try adjusting or start a new search." />
+      ) : (
+        <div className="divide-y divide-slate-100">
           {jobs.map(job => (
-            <tr key={job.$id} className="hover:bg-slate-50/50">
-              <td className="px-8 py-5 font-bold text-slate-900">{job.title}</td>
-              <td className="px-8 py-5 text-slate-600">{job.company}</td>
-              <td className="px-8 py-5">
-                {job.match_score ? (
-                  <span className={`px-3 py-1 rounded-lg text-sm font-black ${parseInt(job.match_score) >= 70 ? 'bg-green-100 text-green-700' : parseInt(job.match_score) >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                    {job.match_score}%
+            <div key={job.$id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer" onClick={() => onReview(job)}>
+                  <div className="w-12 h-12 bg-gradient-to-br from-sky-100 to-blue-100 rounded-xl flex items-center justify-center text-sky-600 flex-shrink-0">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h5 className="font-semibold text-slate-800 truncate">{job.title}</h5>
+                    <p className="text-sm text-slate-500">{job.company}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {job.match_score && (
+                    <span className={`px-2 py-1 rounded-lg text-xs font-bold ${getScoreColor(job.match_score).bg} ${getScoreColor(job.match_score).text}`}>
+                      {job.match_score}% match
+                    </span>
+                  )}
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${job.applied ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {job.applied ? 'Applied' : 'Draft'}
                   </span>
-                ) : (
-                  <span className="text-xs text-slate-400">—</span>
-                )}
-              </td>
-              <td className="px-8 py-5">
-                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold ${job.applied ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
-                  {job.applied ? 'APPLIED' : 'DRAFT'}
-                </span>
-              </td>
-              <td className="px-8 py-5 text-sm text-slate-400">{new Date(job.$createdAt).toLocaleDateString()}</td>
-              <td className="px-8 py-5 text-right space-x-3">
-                <button onClick={() => onReview(job)} className="text-blue-600 hover:text-blue-800 font-bold text-xs">REVIEW</button>
-                <a href={job.link} target="_blank" className="text-slate-400 hover:text-blue-600 inline-flex items-center gap-1 font-bold text-xs">GO <ExternalLink className="w-3 h-3" /></a>
-              </td>
-            </tr>
+                  <span className="text-sm text-slate-400 hidden sm:block">{new Date(job.$createdAt).toLocaleDateString()}</span>
+                  <button 
+                    onClick={() => onReview(job)}
+                    className="px-3 py-1.5 text-sky-600 hover:bg-sky-50 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                  >
+                    Review
+                  </button>
+                  <a 
+                    href={job.link} 
+                    target="_blank"
+                    onClick={e => e.stopPropagation()}
+                    className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                    title="View on site"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
     </div>
   </motion.div>
 );
 
-const TrackerView = ({ jobs, stats, onUpdateStatus, loading }) => {
-  const [selectedTracker, setSelectedTracker] = useState(null);
-  
-  const responseOptions = ['pending', 'rejected', 'interview', 'offer'];
-  
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div className="grid grid-cols-5 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-100">
-          <p className="text-xs font-bold text-slate-400 uppercase">Total</p>
-          <p className="text-3xl font-black text-slate-900 mt-1">{stats.total}</p>
-        </div>
-        <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100">
-          <p className="text-xs font-bold text-amber-600 uppercase">Draft</p>
-          <p className="text-3xl font-black text-amber-700 mt-1">{stats.draft}</p>
-        </div>
-        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100">
-          <p className="text-xs font-bold text-blue-600 uppercase">Sent</p>
-          <p className="text-3xl font-black text-blue-700 mt-1">{stats.sent}</p>
-        </div>
-        <div className="bg-purple-50 p-5 rounded-2xl border border-purple-100">
-          <p className="text-xs font-bold text-purple-600 uppercase">Responses</p>
-          <p className="text-3xl font-black text-purple-700 mt-1">{stats.responses}</p>
-        </div>
-        <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
-          <p className="text-xs font-bold text-green-600 uppercase">Interviews</p>
-          <p className="text-3xl font-black text-green-700 mt-1">{stats.interviews}</p>
-        </div>
-      </div>
+const TrackerView = ({ jobs, stats, onUpdateStatus, loading }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <TrackerStat label="Total" value={stats.total} color="slate" />
+      <TrackerStat label="Draft" value={stats.draft} color="amber" />
+      <TrackerStat label="Sent" value={stats.sent} color="sky" />
+      <TrackerStat label="Responses" value={stats.responses} color="violet" />
+      <TrackerStat label="Interviews" value={stats.interviews} color="emerald" />
+    </div>
 
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-            <tr>
-              <th className="px-6 py-4">Company</th>
-              <th className="px-6 py-4">Position</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Response</th>
-              <th className="px-6 py-4">Interview</th>
-              <th className="px-6 py-4">Salary</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {jobs.filter(j => j.applied || j.status === 'draft').map(job => (
-              <tr key={job.$id} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => setSelectedTracker(selectedTracker === job.$id ? null : job.$id)}>
-                <td className="px-6 py-4 font-bold text-slate-900">{job.company}</td>
-                <td className="px-6 py-4 text-slate-600 text-sm">{job.title}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${job.status === 'sent' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {jobs.filter(j => j.applied || j.status === 'draft').length === 0 ? (
+        <EmptyState message="No applications to track yet. Start applying to jobs!" />
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {jobs.filter(j => j.applied || j.status === 'draft').map(job => (
+            <div key={job.$id} className="p-4 hover:bg-slate-50 transition-colors">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="font-semibold text-slate-800">{job.company}</h5>
+                  <p className="text-sm text-slate-500">{job.title}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className={`px-3 py-1.5 rounded-lg text-xs font-bold ${job.status === 'sent' ? 'bg-sky-100 text-sky-700' : 'bg-amber-100 text-amber-700'}`}>
                     {job.status?.toUpperCase() || 'DRAFT'}
                   </span>
-                </td>
-                <td className="px-6 py-4">
                   <select 
                     value={job.response_status || 'pending'}
-                    onChange={(e) => { e.stopPropagation(); onUpdateStatus(job.$id, { response_status: e.target.value, response_date: new Date().toISOString().split('T')[0] }); }}
-                    className={`text-xs font-bold px-2 py-1 rounded-lg border-0 cursor-pointer ${
+                    onChange={(e) => onUpdateStatus(job.$id, { response_status: e.target.value, response_date: new Date().toISOString().split('T')[0] })}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border-0 cursor-pointer ${
                       job.response_status === 'rejected' ? 'bg-red-100 text-red-700' :
-                      job.response_status === 'interview' ? 'bg-purple-100 text-purple-700' :
-                      job.response_status === 'offer' ? 'bg-green-100 text-green-700' :
+                      job.response_status === 'interview' ? 'bg-violet-100 text-violet-700' :
+                      job.response_status === 'offer' ? 'bg-emerald-100 text-emerald-700' :
                       'bg-slate-100 text-slate-600'
                     }`}
-                    onClick={(e) => e.stopPropagation()}
                   >
-                    {responseOptions.map(opt => <option key={opt} value={opt}>{opt.toUpperCase()}</option>)}
+                    {['pending', 'rejected', 'interview', 'offer'].map(opt => (
+                      <option key={opt} value={opt}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</option>
+                    ))}
                   </select>
-                </td>
-                <td className="px-6 py-4">
-                  {job.interview_date ? (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-purple-500" />
-                      <span className="text-sm font-medium text-purple-700">{new Date(job.interview_date).toLocaleDateString()}</span>
+                  {job.interview_date && (
+                    <div className="flex items-center gap-2 text-violet-600 text-sm">
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium">{new Date(job.interview_date).toLocaleDateString()}</span>
                     </div>
-                  ) : (
-                    <span className="text-xs text-slate-400">Not scheduled</span>
                   )}
-                </td>
-                <td className="px-6 py-4 text-sm text-slate-500">{job.salary_range || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </motion.div>
-  );
-};
-
-const ProfileView = ({ profile, setProfile, onSave, onSyncGitHub, loading }) => (
-  <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="max-w-5xl mx-auto bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
-    <div className="flex items-center justify-between mb-10">
-      <div>
-        <h3 className="text-2xl font-bold text-slate-900">Master CV Builder</h3>
-        <p className="text-slate-500">Provide your best experience. AI will tailor this data for each job.</p>
-      </div>
-      <div className="flex gap-3">
-        <button onClick={onSyncGitHub} className="px-6 py-3 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all">
-          Sync GitHub
-        </button>
-        <button onClick={onSave} disabled={loading} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all disabled:bg-slate-400">
-          {loading ? 'Saving...' : 'Save Profile'}
-        </button>
-      </div>
-    </div>
-    
-    <div className="space-y-8">
-      <div className="grid grid-cols-3 gap-4">
-        <Input label="Full Name" value={profile.name || ''} onChange={v => setProfile({...profile, name: v})} />
-        <Input label="Email" value={profile.email || ''} onChange={v => setProfile({...profile, email: v})} />
-        <Input label="Phone" value={profile.phone || ''} onChange={v => setProfile({...profile, phone: v})} />
-      </div>
-      
-      <div className="grid grid-cols-3 gap-4">
-        <Input label="Location" value={profile.location || ''} onChange={v => setProfile({...profile, location: v})} />
-        <Input label="Job Title" value={profile.title || ''} onChange={v => setProfile({...profile, title: v})} />
-        <Input label="LinkedIn URL" value={profile.linkedin || ''} onChange={v => setProfile({...profile, linkedin: v})} placeholder="linkedin.com/in/username" />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Input label="GitHub URL" value={profile.github || ''} onChange={v => setProfile({...profile, github: v})} placeholder="github.com/username" />
-        <Input label="Portfolio URL" value={profile.portfolio || ''} onChange={v => setProfile({...profile, portfolio: v})} placeholder="yourwebsite.com" />
-      </div>
-
-      <Area label="Professional Summary" value={profile.summary || ''} onChange={v => setProfile({...profile, summary: v})} rows={3} placeholder="A compelling 2-3 sentence summary of your professional background and career goals..." />
-
-      <Area label="Technical Skills (comma-separated)" value={profile.skills || ''} onChange={v => setProfile({...profile, skills: v})} rows={2} placeholder="JavaScript, React, Node.js, Python, SQL, AWS..." />
-
-      <div>
-        <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Work Experience</label>
-        <textarea 
-          rows={6} 
-          className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all text-sm"
-          value={profile.work_history || ''}
-          onChange={e => setProfile({...profile, work_history: e.target.value})}
-          placeholder="Format: Job Title at Company | Duration | Achievement 1; Achievement 2; Achievement 3
-
-Example:
-Senior Developer at TechCorp | 2021-Present | Built scalable APIs serving 1M users; Led team of 5 developers; Reduced load time by 40%
-Junior Developer at StartupXYZ | 2019-2021 | Developed React dashboard; Integrated payment systems"
-        />
-      </div>
-
-      <Area label="Projects (Name: Description - Technologies used)" value={profile.projects || ''} onChange={v => setProfile({...profile, projects: v})} rows={3} placeholder="JobBot AI: Automated job application system - Node.js, OpenAI, Appwrite
-E-commerce Platform: Full-stack shopping site - React, Stripe, MongoDB" />
-
-      <div className="grid grid-cols-2 gap-4">
-        <Area label="Education" value={profile.education || ''} onChange={v => setProfile({...profile, education: v})} rows={2} placeholder="BSc Computer Science, University of Lagos, 2018" />
-        <Area label="Certifications" value={profile.certifications || ''} onChange={v => setProfile({...profile, certifications: v})} rows={2} placeholder="AWS Certified Developer, Google Cloud Professional" />
-      </div>
-
-      <Area label="Languages" value={profile.languages || ''} onChange={v => setProfile({...profile, languages: v})} rows={1} placeholder="English (Native), Yoruba (Fluent), French (Basic)" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   </motion.div>
 );
 
-const SettingsView = ({ settings, setSettings, onSave }) => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-8">
-    <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm">
-      <h3 className="text-2xl font-bold mb-6 flex items-center gap-2"><Settings className="w-6 h-6 text-blue-600" /> Bot Configuration</h3>
-      <form onSubmit={onSave} className="space-y-6">
-        <Input label="Job Search Keywords" value={settings.keywords} onChange={v => setSettings({...settings, keywords: v})} placeholder="e.g. Web Developer, React" />
-        <Input label="Gmail User" value={settings.gmail_user} onChange={v => setSettings({...settings, gmail_user: v})} />
-        <button type="submit" className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-black transition-all">Update System Environment</button>
+const ProfileView = ({ profile, setProfile, onSave, onSyncGitHub, loading }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-sky-50 to-blue-50">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-slate-800">Master CV</h3>
+            <p className="text-sm text-slate-500 mt-1">Your master profile data used to generate tailored resumes</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onSyncGitHub} className="px-4 py-2.5 border border-slate-200 text-slate-600 font-medium rounded-xl hover:bg-white transition-all flex items-center gap-2 cursor-pointer">
+              <Github className="w-4 h-4" /> Sync GitHub
+            </button>
+            <button onClick={onSave} disabled={loading} className="px-6 py-2.5 bg-gradient-to-r from-sky-500 to-blue-500 text-white font-semibold rounded-xl shadow-lg shadow-sky-200/50 hover:from-sky-600 hover:to-blue-600 transition-all disabled:opacity-50 cursor-pointer">
+              {loading ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-8 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField icon={UserCircle} label="Full Name" value={profile.name} onChange={v => setProfile({...profile, name: v})} />
+          <FormField icon={Mail} label="Email" type="email" value={profile.email} onChange={v => setProfile({...profile, email: v})} />
+          <FormField icon={Phone} label="Phone" value={profile.phone} onChange={v => setProfile({...profile, phone: v})} />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField icon={MapPin} label="Location" value={profile.location} onChange={v => setProfile({...profile, location: v})} />
+          <FormField icon={BriefcaseBusiness} label="Job Title" value={profile.title} onChange={v => setProfile({...profile, title: v})} />
+          <FormField icon={Linkedin} label="LinkedIn" value={profile.linkedin} onChange={v => setProfile({...profile, linkedin: v})} placeholder="linkedin.com/in/username" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField icon={Github} label="GitHub" value={profile.github} onChange={v => setProfile({...profile, github: v})} placeholder="github.com/username" />
+          <FormField icon={Globe} label="Portfolio" value={profile.portfolio} onChange={v => setProfile({...profile, portfolio: v})} placeholder="yourwebsite.com" />
+        </div>
+
+        <TextAreaField icon={FileText} label="Professional Summary" value={profile.summary} onChange={v => setProfile({...profile, summary: v})} rows={3} placeholder="A compelling 2-3 sentence summary..." />
+
+        <TextAreaField icon={Zap} label="Technical Skills" value={profile.skills} onChange={v => setProfile({...profile, skills: v})} rows={2} placeholder="JavaScript, React, Node.js, Python..." />
+
+        <TextAreaField icon={Briefcase} label="Work Experience" value={profile.work_history} onChange={v => setProfile({...profile, work_history: v})} rows={5} placeholder="Job Title at Company | Duration | Achievement 1; Achievement 2..." />
+
+        <TextAreaField icon={Rocket} label="Projects" value={profile.projects} onChange={v => setProfile({...profile, projects: v})} rows={3} placeholder="Project Name: Description - Technologies used..." />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TextAreaField icon={GraduationCap} label="Education" value={profile.education} onChange={v => setProfile({...profile, education: v})} rows={2} placeholder="Degree, Institution, Year" />
+          <TextAreaField icon={Award} label="Certifications" value={profile.certifications} onChange={v => setProfile({...profile, certifications: v})} rows={2} placeholder="AWS Certified, Google Cloud..." />
+        </div>
+
+        <TextAreaField icon={Languages} label="Languages" value={profile.languages} onChange={v => setProfile({...profile, languages: v})} rows={1} placeholder="English (Native), Yoruba (Fluent)..." />
+      </div>
+    </div>
+  </motion.div>
+);
+
+const SettingsView = ({ settings, setSettings, onSave, loading }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-8 py-6 border-b border-slate-100">
+        <h3 className="text-xl font-bold text-slate-800">Configuration</h3>
+        <p className="text-sm text-slate-500 mt-1">Bot settings and preferences</p>
+      </div>
+      <form onSubmit={onSave} className="p-8 space-y-6">
+        <FormField icon={Search} label="Job Search Keywords" value={settings.keywords} onChange={v => setSettings({...settings, keywords: v})} placeholder="Web Developer, React, Node.js" />
+        <FormField icon={Mail} label="Gmail User" value={settings.gmail_user} onChange={v => setSettings({...settings, gmail_user: v})} />
+        <button type="submit" disabled={loading} className="w-full py-3 bg-gradient-to-r from-slate-800 to-slate-900 text-white font-semibold rounded-xl hover:from-slate-900 hover:to-black transition-all disabled:opacity-50 cursor-pointer">
+          {loading ? 'Saving...' : 'Save Settings'}
+        </button>
       </form>
     </div>
   </motion.div>
 );
 
-// --- Helpers ---
+const StatCard = ({ label, value, icon: Icon, color }) => {
+  const colors = {
+    sky: 'bg-sky-100 text-sky-600',
+    emerald: 'bg-emerald-100 text-emerald-600',
+    amber: 'bg-amber-100 text-amber-600',
+    violet: 'bg-violet-100 text-violet-600'
+  };
+  
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <div className={`w-10 h-10 rounded-lg ${colors[color]} flex items-center justify-center mb-3`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <p className="text-sm text-slate-500 font-medium">{label}</p>
+      <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
+    </div>
+  );
+};
 
-const StatBox = ({ label, value, icon: Icon, color }) => (
-  <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-    <div className={`p-3 rounded-2xl ${color} bg-opacity-10 w-fit mb-4`}><Icon className={color} /></div>
-    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{label}</p>
-    <h4 className="text-3xl font-black text-slate-900 mt-1">{value}</h4>
+const TrackerStat = ({ label, value, color }) => {
+  const colors = {
+    slate: 'bg-slate-100 text-slate-700',
+    amber: 'bg-amber-100 text-amber-700',
+    sky: 'bg-sky-100 text-sky-700',
+    violet: 'bg-violet-100 text-violet-700',
+    emerald: 'bg-emerald-100 text-emerald-700'
+  };
+  
+  return (
+    <div className={`${colors[color]} rounded-xl p-4`}>
+      <p className="text-xs font-semibold uppercase opacity-70">{label}</p>
+      <p className="text-2xl font-bold mt-1">{value}</p>
+    </div>
+  );
+};
+
+const FormField = ({ icon: Icon, label, value, onChange, placeholder = "", type = "text" }) => (
+  <div>
+    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+      {Icon && <Icon className="w-4 h-4 text-slate-400" />}
+      {label}
+    </label>
+    <input 
+      type={type} 
+      value={value || ''} 
+      onChange={e => onChange(e.target.value)} 
+      placeholder={placeholder}
+      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition-all text-slate-700" 
+    />
   </div>
 );
 
-const Input = ({ label, value, onChange, placeholder = "", type = "text" }) => (
+const TextAreaField = ({ icon: Icon, label, value, onChange, rows = 3, placeholder = "" }) => (
   <div>
-    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</label>
-    <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all font-medium text-slate-700 shadow-inner" />
+    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+      {Icon && <Icon className="w-4 h-4 text-slate-400" />}
+      {label}
+    </label>
+    <textarea 
+      rows={rows} 
+      value={value || ''} 
+      onChange={e => onChange(e.target.value)} 
+      placeholder={placeholder}
+      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition-all text-slate-700 resize-none" 
+    />
   </div>
 );
 
-const Area = ({ label, value, onChange, rows = 3, placeholder = "" }) => (
-  <div>
-    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">{label}</label>
-    <textarea rows={rows} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:border-blue-500 outline-none transition-all text-sm" />
+const EmptyState = ({ message }) => (
+  <div className="flex flex-col items-center justify-center py-16 text-center">
+    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
+      <Briefcase className="w-8 h-8" />
+    </div>
+    <p className="text-slate-500 font-medium">{message}</p>
   </div>
 );
 
